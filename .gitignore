@@ -1,3 +1,8 @@
+exploration/optim/*
+exploration/logs/*
+exploration/data/torchfsdd/recordings/*
+exploration/ckpt/*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
