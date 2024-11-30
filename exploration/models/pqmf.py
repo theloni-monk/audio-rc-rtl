@@ -170,7 +170,7 @@ class PQMF(nn.Module):
             return torch.stack([self.forward(x[i]) for i in range(x.shape[0])])
         if self.n_band == 1:
             return x
-        x = polyphase_forward(x, self.hk)
+        x = polyphase_forward(x, self.hk.to(x.device))
 
         x = reverse_half(x)
 

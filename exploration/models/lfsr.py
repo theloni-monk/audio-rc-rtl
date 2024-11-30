@@ -11,8 +11,10 @@ def int32_to_bool_tensor(int32_tensor):
     bool_tensor = (int32_tensor.unsqueeze(-1) & (1 << torch.arange(32))) > 0
     return bool_tensor.flatten()
 
+def clog2(tensor):
+    return torch.ceil(torch.log2(tensor)) if tensor > 0 else torch.tensor()
 
-class Int8_LFSR:
+class LFSR:
     def __init__(self, polydegrees: torch.IntTensor = torch.tensor([10, 7, 0]), seed: torch.IntTensor = torch.tensor(-69)):
         self.degree = max(polydegrees)
         self.poly_degrees = torch.tensor(polydegrees)
@@ -20,13 +22,20 @@ class Int8_LFSR:
         self.seed(seed)
 
     def seed(self, seed):
-        self.statebits = int32_to_bool_tensor(seed.to(torch.int32))[:self.degree+1]
+        self.statebits = int32_to_bool_tensor(torch.tensor(seed, dtype=torch.int32))[:self.degree+1]
 
     def gen_bit(self):
         feedback = torch.tensor(int(torch.sum(self.statebits[self.poly_degrees - 1])) % 2, dtype=torch.bool)
         self.statebits = torch.cat((torch.tensor([feedback]), self.statebits[:-1]))
         return torch.tensor([self.statebits[0]])
-
+    
+    def gen_fxp_shift(self, n_bits):
+            shift_bits = torch.cat(tuple(self.gen_bit() for _ in range(n_bits-1)))
+            shift_int = torch.sum(shift_bits * (1 << torch.arange(n_bits-1)), dim=-1).to(torch.int64)
+            sign_bit = self.gen_bit()
+            
+            return 1/(2**shift_int) if sign_bit else -1/(2**shift_int)
+        
     def gen_int8(self):
         return bool_tensor_to_int8(torch.cat(tuple(self.gen_bit() for _ in range(8))))
 
