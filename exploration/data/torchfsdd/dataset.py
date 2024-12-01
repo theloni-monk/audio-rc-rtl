@@ -42,22 +42,14 @@ class TorchFSDDGenerator:
     **args: optional
         Arbitrary keyword arguments passed on to :py:func:`torchaudio:torchaudio.load`.
     """
-    def __init__(self, version='master', path=None, transforms=None, load_all=False, **args):
+    def __init__(self, version='local', path=None, transforms=None, load_all=False, dont_transform_val = True, **args):
         if version == 'local':
             if path is None:
                 raise ValueError('Expected path to be a directory containing WAV recordings')
         else:
-            path = os.getcwd() if path is None else path
-            repo_path = os.path.join(path, REPOSITORY['name'])
+            assert False, "only local files supported"
 
-            try:
-                subprocess.call(['git', '-C', path, 'clone', REPOSITORY['url'], '--branch', version])
-                shutil.move(os.path.join(repo_path, 'recordings'), path)
-                path = os.path.join(path, 'recordings')
-            finally:
-                if os.path.isdir(repo_path):
-                    shutil.rmtree(repo_path)
-
+        self.val_clean = dont_transform_val
         self.path = path
         self.transforms = transforms
         self.load_all = load_all
@@ -101,8 +93,8 @@ class TorchFSDDGenerator:
             split = test_files if int(rec_num) + 1 <= n_test else train_files
             split.append(file)
 
-        train_set = TorchFSDD(train_files, self.transforms, self.load_all, **self.args)
-        test_set = TorchFSDD(test_files, self.transforms, self.load_all, **self.args)
+        train_set = TorchFSDD(train_files, self.transforms, **self.args)
+        test_set = TorchFSDD(test_files, self.transforms, **self.args)
         return train_set, test_set
 
     def train_val_test_split(self, test_size=0.1, val_size=0.1):
@@ -146,11 +138,12 @@ class TorchFSDDGenerator:
                 split = train_files
             split.append(file)
 
-        train_set = TorchFSDD(train_files, self.transforms, self.load_all, **self.args)
-        val_set = TorchFSDD(val_files, self.transforms, self.load_all, **self.args)
-        test_set = TorchFSDD(test_files, self.transforms, self.load_all, **self.args)
+        train_set = TorchFSDD(train_files, self.transforms, **self.args)
+        val_set = TorchFSDD(val_files, None if self.val_clean else self.transforms , **self.args)
+        test_set = TorchFSDD(test_files, self.transforms, **self.args)
         return train_set, val_set, test_set
 
+WAV_LEN = 8000
 class TorchFSDD(torch.utils.data.Dataset):
     """A :class:`torch:torch.utils.data.Dataset` wrapper for specified
     WAV audio recordings of the Free Spoken Digit Dataset.
@@ -204,33 +197,34 @@ class TorchFSDD(torch.utils.data.Dataset):
     **args: optional
         Arbitrary keyword arguments passed on to :py:func:`torchaudio:torchaudio.load`.
     """
-    def __init__(self, files, transforms=None, load_all=False, **args):
+    def __init__(self, files, transforms=None, **args):
         super().__init__()
-        self.files = files
+        self.all_files = files
+        self.files = []
         self.transforms = transforms
         self.args = args
 
         get_audio = lambda file: torchaudio.load(file, **self.args)[0]
         get_label = lambda file: int(os.path.basename(file)[0])
 
-        if load_all:
-            self.recordings, self.labels = [], []
-            for file in self.files:
-                self.recordings.append(get_audio(file))
+        self.recordings, self.labels = [], []
+        for file in self.all_files:
+            audio = get_audio(file)
+            if audio.numel() < 8001: # reject files with unnessarily long waveforms
+                audio = torch.nn.functional.pad(audio, (0, WAV_LEN - audio.numel()), "constant", 0.0)
+                self.recordings.append(audio)
                 self.labels.append(get_label(file))
+                self.files.append(file)
 
-            def _load(self, index):
-                return self.recordings[index], self.labels[index]
-        else:
-            def _load(self, index):
-                file = self.files[index]
-                return get_audio(file), get_label(file)
-
+        def _load(self, index):
+            return self.recordings[index], self.labels[index]
+        
         setattr(self.__class__, '_load', _load)
 
     def __len__(self):
-        return len(self.files)
+        return len(self.recordings)
 
+    #TODO: cache tranformed samples
     def __getitem__(self, index):
         # Fetch the audio and corresponding label
         x, y = self._load(index)
@@ -238,6 +232,8 @@ class TorchFSDD(torch.utils.data.Dataset):
 
         # Transform data if a transformation is given
         if self.transforms is not None:
-            x = self.transforms(x)
+            x = self.transforms(x.reshape(1,1,-1))
+            if isinstance(x, dict):
+                x = x['samples']
 
         return x, y
