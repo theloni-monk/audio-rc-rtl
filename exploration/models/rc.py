@@ -7,7 +7,7 @@ from .lfsr import LFSR
 from .pqmf import PQMF
 
 def clip_nl(x):
-    return torch.clamp(4*x, -1, 1) #HACK
+    return torch.clamp(4*x, -1, 1)
 
 # if your nonlinearity isn't in the feedback path you should probably just use a linear reservoir tbh
 class Abstract_RC(nn.Module):
@@ -81,10 +81,14 @@ class LowBitMixIn(nn.Module):
         self.seed = seed
         super().__init__()
 
-        cyclemask = sum(torch.eye(self.f_out, self.f_in).roll(i, dims=0) for i in range(1, self.degree)).bool()
+        cyclemask = sum(torch.eye(self.f_out, self.f_in).roll(i, dims=0) for i in range(1, self.degree)).bool() if self.degree > 1 else None
         lfsr = LFSR(seed = self.seed)
         self.mixer = torch.zeros(self.f_out, self.f_in)
-        self.mixer[cyclemask] = torch.tensor([lfsr.gen_fxp_shift(self.n_bits) for _ in range(cyclemask.sum())])
+        if cyclemask is not None:
+            self.mixer[cyclemask] = torch.tensor([lfsr.gen_fxp_shift(self.n_bits) for _ in range(cyclemask.sum())])
+        else:
+            self.mixer = torch.tensor([lfsr.gen_fxp_shift(self.n_bits) for _ in range(self.mixer.numel())]).unsqueeze(-1)
+        
         torch.random.manual_seed(self.seed)
         self.permutation = torch.randperm(self.f_in)
     
@@ -138,18 +142,26 @@ def reluleak16r(x):
 
 
 class FSDDPipelineV3(nn.Module):
-    def __init__(self, n_bands, n_feats, n_bits, spec_rad, rc_multiplex_degree, feedback_nl, seed = 69):
+    def __init__(self, n_bands, n_feats, n_bits, spec_rad, rc_multiplex_degree, feedback_nl, pl_version = 3, seed = 69):
         super().__init__()
         self.scramble = LowBitMixIn(n_bits, rc_multiplex_degree, n_bands, n_feats)
         self.rc = LowBit_RC(n_bits, seed, rc_multiplex_degree, spec_rad, n_feats, 10, clip_nl, feedback_nl)
-        self.lin_bypass = nn.Linear(n_feats, 10)
-        self.ff1 = nn.Linear(n_feats, n_feats//2)
-        self.ff2 = nn.Linear(n_feats//2, 10)
+        self.lin_bypass = nn.Linear(n_bands, 10)
+        self.ff1 = nn.Linear(n_bands, n_bands//2)
+        self.ff2 = nn.Linear(n_bands//2, 10)
+        # self.pqmf = PQMF(100, n_bands)
+        self.bandnorm = nn.InstanceNorm1d(n_bands)
+        self.scramblenorm = nn.InstanceNorm1d(n_feats)
 
-    def forward(self, bands):
+    def forward(self, x):
+
+        bands = x #if x.shape[1] == self.pqmf.n_band else self.pqmf(x)
+        bands = self.bandnorm(bands)
         scrambled = self.scramble(bands)
-        bypass = self.lin_bypass(scrambled.mT).mT
+        scrambled = self.scramblenorm(scrambled) # IDK if this is necessary
+
+        ff = (self.ff2(reluleak16(self.ff1(bands.mT))) + self.lin_bypass(bands.mT)).mT
+
         res = self.rc(scrambled)
-        ff = self.ff2(reluleak16(self.ff1(scrambled.mT))).mT
-        
-        return  reluleak16r(res + bypass + ff).mean(dim=-1)
+
+        return  F.relu(res + ff).mean(dim=-1)
