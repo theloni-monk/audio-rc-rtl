@@ -5,26 +5,43 @@ import torch.nn.functional as F
 
 from .lfsr import LFSR
 from .pqmf import PQMF
+# from ..data.torchfsdd import WAV_LEN
+def mtmt(x, lin):
+    return lin(x.mT).mT
 
-def clip_nl(x):
-    return torch.clamp(4*x, -1, 1)
+
+class Clipper(nn.Module):
+    def __init__(self, slope = 2, soft=True):
+        super().__init__()
+        self.slope = slope
+        self.soft = soft
+
+    def forward(self, x):
+        x = self.slope*x
+        if self.soft:
+            return F.tanh(x)
+        return torch.clamp(x, -1.0, 1.0)
 
 # if your nonlinearity isn't in the feedback path you should probably just use a linear reservoir tbh
 class Abstract_RC(nn.Module):
-    def __init__(self, in_dim, out_dim, nonlin = clip_nl, feedback_nl = True):
+    def __init__(self, in_dim, out_dim, nonlin = Clipper(), normalizer = None, skip_lin = False, symbreak=None):
+        self.skip_lin = skip_lin
         super().__init__()
         self.in_dim = in_dim
-        self.feedback_nl = feedback_nl
+        if symbreak is not None:
+            in_dim *= 2
         self.nonlin = nonlin
-        self.lin_out = nn.Linear(in_dim if feedback_nl else 2*in_dim, out_dim)
+        if not skip_lin:
+            self.lin_out = nn.Linear(in_dim, out_dim)
         self.feature_pushforward = self._gen_weights()
+        self.norm = normalizer
+        self.symbreak = symbreak
 
     def update_feats(self, datavec):
         self.features = self.features.to(datavec.device)
         self.features @= self.feature_pushforward.to(datavec.device)
-        self.features += datavec
-        if self.feedback_nl:
-            self.features = self.nonlin(self.features)
+        self.features = self.features.expand(datavec.shape) + datavec
+        self.features = self.nonlin(self.features)
 
     def forward(self, x, init_feat = None): # x: [batch, vector_dim, time]
 
@@ -32,13 +49,16 @@ class Abstract_RC(nn.Module):
         out = []
         for i in range(x.shape[-1]):
             self.update_feats(x[..., i])
-            out.append(self.features.to(x.device))
+            out.append(self.features)
 
         resbuf =  torch.stack(out).movedim(0, -1)
-        if not self.feedback_nl: # nonlinearity is feed forward
-            resbuf = torch.cat((resbuf, self.nonlin(resbuf)), dim=1)
-
-        return self.lin_out(resbuf.mT).mT
+        if self.norm is not None:
+            resbuf = self.norm(resbuf)
+        if self.symbreak is not None:
+            resbuf = torch.cat((resbuf, self.symbreak(resbuf)), dim=1)
+        if self.skip_lin:
+            return resbuf
+        return mtmt(resbuf, self.lin_out)
 
 class CyclicMultiplex_RC(Abstract_RC):
     def __init__(self, degree, spec_rad=0.1, *args):
@@ -61,7 +81,7 @@ class LowBit_RC(CyclicMultiplex_RC):
 
     def _gen_weights(self):
         cyclemask = sum(torch.eye(self.in_dim).roll(i, dims=0) for i in range(1, self.degree)).bool()
-        
+
         lfsr = LFSR(seed = self.seed)
         A = torch.zeros(self.in_dim, self.in_dim)
         A[cyclemask] = torch.tensor([lfsr.gen_fxp_shift(self.n_bits) for _ in range(cyclemask.sum())])
@@ -81,7 +101,8 @@ class LowBitMixIn(nn.Module):
         self.seed = seed
         super().__init__()
 
-        cyclemask = sum(torch.eye(self.f_out, self.f_in).roll(i, dims=0) for i in range(1, self.degree)).bool() if self.degree > 1 else None
+        cyclemask = sum(torch.eye(self.f_out, self.f_in).roll(i, dims=0) 
+                        for i in range(1, self.degree)).bool() if self.degree > 1 else None
         lfsr = LFSR(seed = self.seed)
         self.mixer = torch.zeros(self.f_out, self.f_in)
         if cyclemask is not None:
@@ -89,11 +110,12 @@ class LowBitMixIn(nn.Module):
         else:
             self.mixer = torch.tensor([lfsr.gen_fxp_shift(self.n_bits) for _ in range(self.mixer.numel())]).unsqueeze(-1)
         
-        torch.random.manual_seed(self.seed)
-        self.permutation = torch.randperm(self.f_in)
-    
+        # torch.random.manual_seed(self.seed)
+        # self.permutation = torch.randperm(self.f_in)
+        # torch.random.seed()
+
     def forward(self, x):
-        return self.mixer.to(x.device) @ x[:, self.permutation, :]
+        return self.mixer.to(x.device) @ x #[:, self.permutation, :]
 
 class FSDDPipeline(nn.Module):
     def __init__(self, n_bands, n_feats, n_bits, spec_rad, mix_degree, rc_multiplex_degree, seed = 69):
@@ -137,31 +159,44 @@ class FSDDPipelineV2(nn.Module):
 def reluleak16(x):
     return F.leaky_relu(x, 1.0/16)
 
-def reluleak16r(x):
-    return F.leaky_relu(x, -1.0/16)
+def reluleak64(x):
+    return F.leaky_relu(x, 1.0/64)
 
+def reluleak128(x):
+    return F.leaky_relu(x, 1.0/128)
 
-class FSDDPipelineV3(nn.Module):
-    def __init__(self, n_bands, n_feats, n_bits, spec_rad, rc_multiplex_degree, feedback_nl, pl_version = 3, seed = 69):
+N_CLASSES = 11
+class FSDDPipelineV7(nn.Module):
+    def __init__(self, n_bands, n_bits, spec_rad, rc_multiplex_degree, pl_version = 7.5, seed = 69):
         super().__init__()
-        self.scramble = LowBitMixIn(n_bits, rc_multiplex_degree, n_bands, n_feats)
-        self.rc = LowBit_RC(n_bits, seed, rc_multiplex_degree, spec_rad, n_feats, 10, clip_nl, feedback_nl)
-        self.lin_bypass = nn.Linear(n_bands, 10)
-        self.ff1 = nn.Linear(n_bands, n_bands//2)
-        self.ff2 = nn.Linear(n_bands//2, 10)
-        # self.pqmf = PQMF(100, n_bands)
-        self.bandnorm = nn.InstanceNorm1d(n_bands)
-        self.scramblenorm = nn.InstanceNorm1d(n_feats)
 
-    def forward(self, x):
+        self.nb = n_bands
+        rc_nl =  Clipper(slope=4, soft=False)
+        self.rc = LowBit_RC(n_bits, seed, 
+                            rc_multiplex_degree, spec_rad, 
+                            n_bands, n_bands, 
+                            rc_nl,  None, #nn.InstanceNorm1d(n_bands), 
+                            True, reluleak128) # symbreaking
 
-        bands = x #if x.shape[1] == self.pqmf.n_band else self.pqmf(x)
-        bands = self.bandnorm(bands)
-        scrambled = self.scramble(bands)
-        scrambled = self.scramblenorm(scrambled) # IDK if this is necessary
+        
+        self.band_norm = nn.InstanceNorm1d(n_bands)
+        
+        self.ff1 = nn.Linear(n_bands, 3*n_bands//2)
+        self.ff2 = nn.Linear(3*n_bands//2, n_bands)
 
-        ff = (self.ff2(reluleak16(self.ff1(bands.mT))) + self.lin_bypass(bands.mT)).mT
+        allfeats = 4*n_bands
+        self.lin_out = nn.Linear(allfeats, N_CLASSES)
 
-        res = self.rc(scrambled)
+        self.preact_norm = nn.BatchNorm1d(N_CLASSES)
 
-        return  F.relu(res + ff).mean(dim=-1)
+    def forward(self, bands):
+        nbands = self.band_norm(bands)
+
+        nl_tdyn = self.rc(nbands)
+
+        ff = reluleak128(mtmt(reluleak128(mtmt(bands, self.ff1)), self.ff2))
+        
+        stacked = torch.cat((bands, ff, nl_tdyn), dim=1)
+        assimilated = reluleak128(self.preact_norm(mtmt(stacked, self.lin_out)))
+
+        return  assimilated.mean(dim=-1)
