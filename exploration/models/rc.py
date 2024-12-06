@@ -166,8 +166,8 @@ def reluleak128(x):
     return F.leaky_relu(x, 1.0/128)
 
 N_CLASSES = 11
-class FSDDPipelineV7(nn.Module):
-    def __init__(self, n_bands, n_bits, spec_rad, rc_multiplex_degree, pl_version = 7.5, seed = 69):
+class FSDDPipelineV8(nn.Module):
+    def __init__(self, n_bands, n_bits, spec_rad, rc_multiplex_degree, pl_version = 8.0, seed = 69):
         super().__init__()
 
         self.nb = n_bands
@@ -177,14 +177,19 @@ class FSDDPipelineV7(nn.Module):
                             n_bands, n_bands, 
                             rc_nl,  None, #nn.InstanceNorm1d(n_bands), 
                             True, reluleak128) # symbreaking
+        # self.linrc = LowBit_RC(n_bits, 2*seed-1, 
+        #                     rc_multiplex_degree, spec_rad, 
+        #                     n_bands, n_bands, 
+        #                     nn.Identity(),  None, #nn.InstanceNorm1d(n_bands), 
+        #                     True, reluleak128) # symbreaking
 
         
         self.band_norm = nn.InstanceNorm1d(n_bands)
         
-        self.ff1 = nn.Linear(n_bands, 3*n_bands//2)
-        self.ff2 = nn.Linear(3*n_bands//2, n_bands)
+        self.ff1 = nn.Linear(n_bands, 3*n_bands)
+        self.ff2 = nn.Linear(3*n_bands, 2*n_bands)
 
-        allfeats = 4*n_bands
+        allfeats = 6*n_bands
         self.lin_out = nn.Linear(allfeats, N_CLASSES)
 
         self.preact_norm = nn.BatchNorm1d(N_CLASSES)
@@ -193,10 +198,12 @@ class FSDDPipelineV7(nn.Module):
         nbands = self.band_norm(bands)
 
         nl_tdyn = self.rc(nbands)
+        # l_tdyn = self.linrc(nbands)
 
-        ff = reluleak128(mtmt(reluleak128(mtmt(bands, self.ff1)), self.ff2))
+        ff = reluleak128(mtmt(reluleak128(mtmt(nbands, self.ff1)), self.ff2))
         
-        stacked = torch.cat((bands, ff, nl_tdyn), dim=1)
+        stacked = torch.cat((bands, nbands, 
+                             ff, nl_tdyn), dim=1)
         assimilated = reluleak128(self.preact_norm(mtmt(stacked, self.lin_out)))
 
         return  assimilated.mean(dim=-1)
