@@ -89,9 +89,7 @@ class TorchFSDDGenerator:
         # print(n_rec)
         n_test, n_val = int(n_rec * test_size), int(n_rec * val_size)
 
-        random.seed(42)
         random.shuffle(self.all_files)
-        random.seed()
 
         val_files = self.all_files[:n_val]
         test_files = self.all_files[n_val:(n_val + n_test)]
@@ -99,7 +97,7 @@ class TorchFSDDGenerator:
 
         train_set = TorchFSDD(train_files, self.train_transforms, **self.args)
         val_set = TorchFSDD(val_files, self.val_transforms , **self.args)
-        test_set = TorchFSDD(test_files, self.train_transforms, **self.args)
+        test_set = TorchFSDD(test_files, self.val_transforms, **self.args)
         return train_set, val_set, test_set
 
 WAV_LEN = 8192
