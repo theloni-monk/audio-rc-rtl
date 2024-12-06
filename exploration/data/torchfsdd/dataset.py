@@ -56,7 +56,8 @@ class TorchFSDDGenerator:
         full_set: :class:`TorchFSDD`
             The :class:`torch:torch.utils.data.Dataset` wrapper for the full data set.
         """
-        return TorchFSDD(self.all_files, self.transforms, self.load_all, **self.args)
+        random.shuffle(self.all_files)
+        return TorchFSDD(self.all_files, self.val_transforms, **self.args)
 
  
     def train_val_test_split(self, test_size=0.1, val_size=0.1):
