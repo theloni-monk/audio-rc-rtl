@@ -56,13 +56,13 @@ async def test_ir(dut):
 """the code below should largely remain unchanged in structure, though the specific files and things
 specified should get updated for different simulations.
 """
-def test_runner(svname):
+def test_runner(svname, subdir):
     """Simulate the counter using the Python runner."""
     hdl_toplevel_lang = os.getenv("HDL_TOPLEVEL_LANG", "verilog")
     sim = os.getenv("SIM", "icarus")
     proj_path = Path(__file__).resolve().parent.parent
     sys.path.append(str(proj_path / "sim" / "model"))
-    sources = [proj_path / "hdl" / f"{svname}.sv"] #grow/modify this as needed.
+    sources = [proj_path / "hdl" / subdir / f"{svname}.sv"] #grow/modify this as needed.
     build_test_args = ["-Wall"] #,"COCOTB_RESOLVE_X=ZEROS"]
     parameters = {}
     sys.path.append(str(proj_path / "sim"))
@@ -86,4 +86,4 @@ def test_runner(svname):
     )
 
 if __name__ == "__main__":
-    test_runner("fir_15")
+    test_runner("fir_15", "filtering")
