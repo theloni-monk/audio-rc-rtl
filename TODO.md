@@ -11,13 +11,15 @@
 ### HDL
 
 Port to Fixed Point Q4.8:
-- [ ] Mul
-- [ ] MatMul
+- ~~[*] Add~~
+- ~~[*] Mul~~
+- ~~[*] MatMul~~
 
 Implement
-- [ ] Gemm
+- ~~[*] Gemm~~
 - [ ] Clip (-1, 1)
-- [ ] LeakyReLU128
+- ~~[*] Bitshift ~~
+- ~~[*] LeakyReLU128~~
 - [ ] Concat
 
 ### Compiler
@@ -26,7 +28,7 @@ Implement
 - [ ] pow2 mul as v_bshift
 
 ### Testbench
-- [*] Validate MVProd in cocotb
+- [*] Validate vw_matmul and vwb_gemm in cocotb
 - [ ] 1step
 - [ ] loopback
 - [ ] integration (fake pqmf driver)
