@@ -1,52 +1,57 @@
-# TODOs:
+# TODOs
 
-## Software
+## MVP
+### Software
 - ~~[*] model arch~~
 - ~~[*] training~~
 - ~~[*] export~~
 - ~~[*] validation~~
-- ~~[*] quatnziation~~
+- ~~[*] quantization~~
 
-## HDL
-### Sigproc
-- [*] Averaging Filter
-- [ ] Export quantized pqmf weights
-- [ ] Symmetric FIR
-- [ ] Polyphase decimation filter
+### HDL
 
-### MLOps
-Float domain:
-- [*] QuantizeLinear
-- [ ] DequantizeLinear
-- [ ] BatchNormalization
-- [ ] QLinearLeakyRelu (see if i can take advantage of >>7)
-- [ ] QLinearConcat
+#### MLOps
+Port to Fixed Point:
+- [ ] Add
+- [ ] Mul
+- [ ] Gemm
 
-Mixed domain:
-- [ ] QLinearAdd
-- [ ] QLinearMul
-- [ ] QGemm
+Implement
+- [ ] BatchNorm
+- [ ] Clip (-1, 1)
+- [ ] LeakyReLU
+- [ ] Concat
+- [ ] Pipeline balancer
 
-## Compiler
-- [ ] loopy traversal
-- [ ] Axi-wrapping
 
-## Testbench
-- [ ] QDQ
+### Testbench
+- [ ] Validate MVProd in cocotb
 - [ ] 1step
 - [ ] loopback
-- [ ] integration (fake driver)
+- [ ] integration (fake pqmf driver)
 
-## Hardware
-- [ ] DMA debugging setup
-- [ ] Mic access
-- [ ] Mic gain tuning
-- [ ] model deployment
-- [ ] profit
-
-## Writeup
+### Writeup
 - [ ] Intro
 - [ ] model justification / training process
 - [ ] hdl implementations
 - [ ] success?
 - [ ] conclusion
+
+## Stretch goals (unlikely)
+
+#### Sigproc - skipping for now
+- [ ] Averaging Filter
+- [ ] Export quantized pqmf weights
+- [ ] Symmetric FIR
+- [ ] Polyphase decimation filter
+
+### Compiler
+- [ ] loopy traversal
+- [ ] Axi-wrapping
+
+### Hardware Deployment
+- [ ] DMA debugging setup
+- [ ] Mic access
+- [ ] Mic gain tuning
+- [ ] model deployment
+- [ ] profit
