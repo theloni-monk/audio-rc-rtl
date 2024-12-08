@@ -10,22 +10,23 @@
 
 ### HDL
 
-#### MLOps
-Port to Fixed Point:
-- [ ] Add
+Port to Fixed Point Q4.8:
 - [ ] Mul
-- [ ] Gemm
+- [ ] MatMul
 
 Implement
-- [ ] BatchNorm
+- [ ] Gemm
 - [ ] Clip (-1, 1)
-- [ ] LeakyReLU
+- [ ] LeakyReLU128
 - [ ] Concat
-- [ ] Pipeline balancer
 
+### Compiler
+- [ ] gen fixed-point weight files
+- [ ] BatchNorm as vwb_macc
+- [ ] pow2 mul as v_bshift
 
 ### Testbench
-- [ ] Validate MVProd in cocotb
+- [*] Validate MVProd in cocotb
 - [ ] 1step
 - [ ] loopback
 - [ ] integration (fake pqmf driver)
