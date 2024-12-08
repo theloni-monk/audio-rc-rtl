@@ -22,7 +22,6 @@ class LowBit_RC(nn.Module):
         super().__init__()
 
     def _gen_weights(self):
-        # cyclemask = sum(torch.eye(self.in_dim).roll(i, dims=0) for i in range(1, self.degree)).bool()
         lfsr = LFSR(seed = self.seed)
         A = torch.tensor([lfsr.gen_fxp_shift(self.n_bits) for _ in range(64)]).reshape(8,8)
         return 0.1* A / torch.linalg.eigvals(A)[0].abs()
@@ -47,7 +46,7 @@ class TorchPipeline(nn.Module):
         bands = 8
         self.whiten = nn.BatchNorm1d(8)
         self.rc = FSDDRC()
-        
+
         self.ff1 = nn.Linear(bands, 3*bands)
         self.ff2 = nn.Linear(3*bands, 2*bands)
 
@@ -57,12 +56,11 @@ class TorchPipeline(nn.Module):
 
     def forward(self, x):
 
-        bwhitened =  self.whiten(x) #(x - self.channel_bias.unsqueeze(-1)) * self.channel_scale.unsqueeze(-1)
-
+        bwhitened =  self.whiten(x)
         nl_tdyn = self.rc(bwhitened)
 
         ff = reluleak128(mtmt(reluleak128(mtmt(bwhitened, self.ff1)), self.ff2))
-        
+
         stacked = torch.cat((x, bwhitened, 
                              ff, nl_tdyn), dim=-2)
 

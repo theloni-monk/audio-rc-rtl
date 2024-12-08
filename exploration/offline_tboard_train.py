@@ -11,14 +11,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--train2epoch", "-e", type=int)
 parser.add_argument("--ckptfolder", "-c", default="ckpt")
 
-parser.add_argument("--bands", default=8, type=int)
-
 parser.add_argument("--resampevery", default=10, type=int)
 parser.add_argument("--saveevery", default=50, type=int)
 parser.add_argument("--testevery", "-t", default=1, type=int)
 parser.add_argument("--valevery", "-v", default=5, type=int)
 
-parser.add_argument("--nens", "-n", default=350)
+parser.add_argument("--nens", "-n", default=700)
 parser.add_argument("--batch", "-b", default=256)
 
 parser.add_argument("--enslr", default=1.0, type=float)
@@ -41,7 +39,7 @@ parser.add_argument("--enswrperiod", default=1500, type=float)
 parser.add_argument("--gradwrdecay", default=0.25, type=float)
 parser.add_argument("--enswrdecay", default=0.25, type=float)
 
-parser.add_argument("--wstd", default=0.1, type=float)
+parser.add_argument("--wstd", default=0.5, type=float)
 parser.add_argument("--prec", default=0.05, type=float)
 
 parser.add_argument("--aug", "-a", default=False, action="store_true")
@@ -68,14 +66,16 @@ from optim.ens_optim import HybridEnsGradOptimizer
 from optim.schedules.sched import *
 from optim.schedules.noise_sched import UncertAnnealingNS
 
-from models.rc import FSDDPipelineV8, N_CLASSES
+from models.finalpipe import TorchPipeline
 from models.pqmf import PQMF
 
 # this lib spits some annoying bs so I ignore it
 with warnings.catch_warnings(action="ignore"):
     # Initialize augmentation callable
-    audio_augmentation = Compose(
+    train_aug = Compose(
         transforms=[
+            PeakNormalization(p=1, output_type="dict"),
+            Gain(min_gain_in_db = -1.2, max_gain_in_db=-0.8, p=1, output_type="dict"),
             AllPassFilter(sample_rate=8000, p=0.5, output_type="dict"),
             PitchShift(
                 max_transpose_semitones=2, p=0.1, sample_rate=8000, output_type="dict"
@@ -91,26 +91,35 @@ with warnings.catch_warnings(action="ignore"):
         ],
         output_type="dict",
     )
-pqmf = PQMF(100, args.bands)
-transform = lambda x: pqmf(audio_augmentation(x)["samples"])
+    valnorm = Compose(
+        transforms = [
+            PeakNormalization(p=1, output_type="dict"),
+            Gain(min_gain_in_db = -1.2, max_gain_in_db=-0.8, p=1, output_type="dict")
+            ],
+            output_type="dict"
+        )
+
+pqmf = PQMF(100, 8)
+ttransform = lambda x: pqmf(train_aug(x)["samples"])
+vtransform = lambda x: pqmf(valnorm(x)["samples"])
 
 # Initialize a generator for a local version of FSDD
 fsdd = TorchFSDDGenerator(
     version="local",
     path="/home/theloni/audio-rc-rtl/exploration/data/torchfsdd/recordings",
-    train_transforms=transform,
-    val_transforms=pqmf,
+    train_transforms=ttransform,
+    val_transforms=vtransform,
 )
 
 train_set, val_set, test_set = fsdd.train_val_test_split(
     test_size=0.05, val_size=0.2
 )
 
+N_CLASSES = 11
 NOISE_PROB = 1 / N_CLASSES
 # SILENCE_PROB  = 0.0833
 # SILENCE_EPS = 1e-4
 b_rms = lambda x: x.pow(2).mean(dim=-1).mean(dim=-1).sqrt()
-
 
 def collate_fn(batch):
     """Collects together sequences into a single batch, arranged in descending length order."""
@@ -145,12 +154,17 @@ def collate_fn(batch):
 
     return stacked_sequences, labels
 
-
+MDLVERSION = 8.65
 def save_model(m, epochs_reached):
-    outdir = Path(args.ckptfolder) / Path(f"epoch{epochs_reached}")
-    os.makedirs(outdir, exist_ok=True)
-    for name, ckpt in m.named_parameters():
-        torch.save(ckpt, outdir / Path(f"{name}.tensor"))
+    outdir = Path(args.ckptfolder) / Path(f"rc{MDLVERSION}") / Path(f"epoch{epochs_reached}")
+    os.makedirs(outdir / Path("params"), exist_ok=True)
+    os.makedirs(outdir / Path("buffs"), exist_ok=True)
+    
+    for name, pckpt in m.named_parameters():
+        torch.save(pckpt, outdir /  Path(f"params/{name}.tensor"))
+
+    for name, bckpt in m.named_buffers():
+        torch.save(bckpt, outdir /  Path(f"buffs/{name}.tensor"))
 
 
 def save_exit(opt, epochs_reached, writer):
@@ -347,15 +361,8 @@ if __name__ == "__main__":
         test_set, collate_fn=collate_fn, batch_size=len(test_set)
     )
 
-    model_params = {
-        "n_bands": args.bands,
-        "n_bits": 4,
-        "spec_rad": -1,
-        "rc_multiplex_degree": 2,
-        "pl_version": 8.3,
-    }
     # TODO: replace fsdd with wake word detection
-    uut = FSDDPipelineV8(**model_params).cuda()  # V5
+    uut = TorchPipeline().cuda()  # V8.4
 
     with torch.no_grad():
         start_epoch = (
@@ -424,7 +431,7 @@ if __name__ == "__main__":
         init_weight_std=args.wstd,
         noise_sched=UncertAnnealingNS(args.prec, 1e-4, 0.9975),
         grad_criterion=grad_loss,
-        collapse_policy= "fixing", #'resampling_with_inflation', #
+        collapse_policy= 'resampling_with_inflation', #
         ens_weight_decay=None,
         grad_weight_decay=0.0001,
         resampevery=args.resampevery,
@@ -435,8 +442,8 @@ if __name__ == "__main__":
     dt = datetime.datetime.now()
     writer = SummaryWriter(f"logs/pll_mlp_rc/{dt.month}_{dt.day}_{dt.hour}_{dt.minute}")
 
-    with open(Path(writer.log_dir) / "model_params.json", "w") as f:
-        f.write(str(model_params))
+    # with open(Path(writer.log_dir) / "model_params.json", "w") as f:
+    #     f.write(str(model_params))
 
     print("optimizer instantiated => starting training")
 
