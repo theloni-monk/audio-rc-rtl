@@ -48,7 +48,7 @@ always_comb begin
 end
 
 always_ff @(posedge clk_in) begin
-  if(rst_in) begin
+  if(~rst_in) begin // axi standard reset active low
     vec_in_idx <= 0;
     vec_out_idx <= WorkingRegs;
     bias_ptr <= 0;

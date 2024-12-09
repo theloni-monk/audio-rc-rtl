@@ -66,7 +66,7 @@ module fir_15 #
 
     m00_axis_tdata = taps[0];
   end
-
+ //FIXME: spits some junk after tlast, should clear taps
   always_ff @(posedge s00_axis_aclk) begin
   if(~s00_axis_aresetn | (~m00_axis_aresetn)) begin // annoying active low reset
     // RESET

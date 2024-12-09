@@ -40,8 +40,8 @@ endinterface
 
 // sfp 'signal': signed fixed point scaler
 interface sfp #(
-    parameter int signed iw = 1,          // number of integer bits (sign bit included)
-    parameter int unsigned qw = 1,        // number of fractional bits
+    parameter int signed iw = 4,          // number of integer bits (sign bit included)
+    parameter int unsigned qw = 12,        // number of fractional bits
     localparam int unsigned wl = iw + qw  // total number of bits
 ) ();
 

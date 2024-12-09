@@ -1,5 +1,5 @@
 // performs m * x + b, where y, m, x, and b are arbitary FP numbers
-module macc1d_fplib (
+module mac1d_fplib (
   sfp.in    m, x, b,    // input sfp signals
   sfp.out   y           // output sfp signal
 );

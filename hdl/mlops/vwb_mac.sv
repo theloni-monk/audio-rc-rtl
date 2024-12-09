@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 `default_nettype none // prevents system from inferring an undeclared logic (good practice)
 
-module vwb_macc
+module vwb_mac
 #(  parameter InVecLength,
     parameter WorkingRegs,
     parameter NBits,
@@ -61,9 +61,9 @@ xilinx_single_port_ram_read_first #(
 
 
 genvar i
-generate 
+generate
   for (i=0; i < WorkingRegs; i++) begin
-    macc1d_fplib(
+    mac1d_fplib#(.I(4), .Q(12))(
       .m($signed(weight_regs[WorkingRegs -1 -i])), 
       .x($signed(in_data[i])), 
       .b($signed(bias_regs[WorkingRegs -1 -i])), 
@@ -72,7 +72,7 @@ generate
 endgenerate
 
 always_ff @(posedge clk_in) begin
-  if(rst_in) begin
+  if(~rst_in) begin // axi standard reset active low
     vec_in_idx <= 0;
     vec_out_idx <= WorkingRegs;
     bias_ptr <= 0;
