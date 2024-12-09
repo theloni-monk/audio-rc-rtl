@@ -29,11 +29,11 @@ Implement
 
 ### Testbench
 
+- ~~[*] Validate vwb_macc~~
+  - ~~[*] bespoke fifo driver~~
+  - ~~[*] bespoke fifo monitor~~
+  - ~~[*] sw model~~
 - [*] Validate vw_matmul and vwb_gemm in cocotb
-  - [*] bespoke fifo driver
-  - [*] bespoke fifo monitor
-  - [ ] sw model
-  - [ ] debug
 - [ ] 1step
 - [ ] loopback
 - [ ] integration (fake pqmf driver)
