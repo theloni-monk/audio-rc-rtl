@@ -77,6 +77,7 @@ always_ff @(posedge clk_in) begin
     state <= WAITING;
     req_chunk_in <= 0;
     req_chunk_out <= 0;
+    weightbias_ptr <= 0;
   end else begin
     if(state == WAITING) begin
         if(in_data_ready) begin
@@ -84,11 +85,13 @@ always_ff @(posedge clk_in) begin
           vec_out_idx <= WorkingRegs >= InVecLength ? 0 : WorkingRegs;
           req_chunk_in <= WorkingRegs < InVecLength;
           req_chunk_out <= 1;
+          weightbias_ptr <= 1;
           state <= PROCESSING;
         end else begin
           vec_out_idx <= WorkingRegs;
           req_chunk_in <= 0;
           req_chunk_out <= 0;
+          weightbias_ptr <= 0;
         end
     end else if (state == PROCESSING) begin
       vec_in_idx <= vec_in_idx + WorkingRegs >= InVecLength ? 0 : vec_in_idx + WorkingRegs;
@@ -98,7 +101,9 @@ always_ff @(posedge clk_in) begin
         state <= in_data_ready ? PROCESSING : WAITING;
         vec_out_idx <= WorkingRegs;
         req_chunk_out <= in_data_ready;
+        weightbias_ptr <= 0;
       end else begin
+        weightbias_ptr <= weightbias_ptr + 1;
         req_chunk_in <= 1;
         req_chunk_out <= 1;
       end
