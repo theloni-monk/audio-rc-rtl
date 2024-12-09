@@ -1,20 +1,30 @@
 from cocotb_bus.scoreboard import Scoreboard
+from .msgtypes import *
+
 
 class EpsScoreboard(Scoreboard):
-    def __init__(self, *args, epsilon=1, debug = False, **kwargs):
+    def __init__(self, *args, epsilon=0.01, debug = False, **kwargs):
         super().__init__(*args, **kwargs)
         self.debug = debug
         self.eps = epsilon
 
     def compare(self, got, exp, log, strict_type=True):
-        if abs(got.data[0]-exp) <= self.eps: #change to whatever you want for the problem at hand.
-        # Don't want to fail the test
-        # if we're passed something without __len__
+        if isinstance(got, AXISMessage):
+            got = got.data[0]
+        if isinstance(got, BspkVectorMsg):
+            got = got.data
+
+        err = float('inf')
+        tol = self.eps
+        if isinstance(got, np.ndarray):
+            err = np.sum(np.abs(got-exp))
+            tol = self.eps * len(got)
+        else:
+            raise NotImplementedError
+        if err <= tol:
             if self.debug:
                 try:
-                    log.debug("Received expected transaction %d bytes" %
-                            (len(got.data)))
-                    log.debug(repr(got))
+                    log.info(f"SCOREBOARD Received expected transaction {len(got)} bytes : {got}")
                 except Exception:
                     pass
         else:
