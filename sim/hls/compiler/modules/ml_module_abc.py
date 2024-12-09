@@ -27,6 +27,9 @@ class Var:
 class BRAMFile:
     fname: str
     buffer: np.ndarray
+    @property
+    def path(self):
+        return f"hdl/dummymodels/data/{self.fname}.mem"
     def __repr__(self):
         return self.fname
 

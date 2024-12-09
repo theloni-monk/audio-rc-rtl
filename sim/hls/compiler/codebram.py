@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import List
 
 import numpy as np
@@ -26,7 +27,6 @@ def np2fxp(arr: np.ndarray, fmt = 'q2.6') -> List[List[FixedPoint]] | List[Fixed
     return out
 
 def write_bram_file(path, chunk_size, fxplist):
-    os.makedirs("/".join(path.split("/")[:-1]),exist_ok=True)
     with open(path, 'w') as f:
         if isinstance(fxplist[0], list): # matrix
             for x in range(len(fxplist)): # row major

@@ -39,7 +39,7 @@ f"""v_fifo #(
         .VecElements({self.in_vec_size}),
         .ElementsPerRead({self.elements_per_read}),
         .ElementsPerWrite({self.elements_per_write}),
-        .NBits({self.nbits})
+        .NBits({self.nbits}),
         .Depth({self.depth}))
         {self.name}
         (

@@ -15,8 +15,8 @@ class VWB_MAC(MLModule):
 f"""vwb_mac #(  .InVecLength({self.in_vec_size}),
             .WorkingRegs({self.working_regs}),
             .NBits({self.nbits}),
-            .WeightFile({self.wfile}),
-            .BiasFile("{self.bfile}"))
+            .WeightFile("{self.wfile.path}"),
+            .BiasFile("{self.bfile.path}"))
         {self.name}
         (
             .clk_in({self.clk_in}),

@@ -8,7 +8,7 @@ from .modules.ml_module_abc import BRAMFile
 def to_ml_module(nodename):
     # Translates from onnx op_type to corresponding fpga module class
     return {"BatchNormalization": VWB_MAC,
-            "MatMul": VW_Matmul }[nodename]
+            "MatMul": VW_Matmul}[nodename]
 
 EPS = 1e-5
 def parse_model(onnx_model, initdim,  spec):
@@ -41,7 +41,7 @@ def parse_model(onnx_model, initdim,  spec):
             mod.bfile = BRAMFile(f"{node.name}_bias", effbias.transpose())
 
         if node.op_type == "MatMul" or node.op_type=="Gemm":
-            mod.wfile = BRAMFile(f"{node.name}_weight", onnx.numpy_helper.to_array(wdict[node.input[1]]).transpose())=
+            mod.wfile = BRAMFile(f"{node.name}_weight", onnx.numpy_helper.to_array(wdict[node.input[1]]).transpose())
             newdim = wdict[node.input[1]].dims[-1]
             mod.out_vec_size = newdim
             mod.req_chunk_ptr_rst = fpga_module.modules[-1].wrap_rd

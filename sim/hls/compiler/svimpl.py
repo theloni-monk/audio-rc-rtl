@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List
 from dataclasses import dataclass
 from functools import reduce
@@ -43,7 +44,8 @@ class SVImpl():
     in_data_ready: Var
     modules: List[MLModule]
 
-    def __init__(self, model, spec):
+    def __init__(self, model, spec, tlname = "ml_inf"):
+        self.tlname = tlname
         self.model = model
         self.clk = Var("clk_in", True, 0, 1, False)
         self.rst = Var("rst_in", True, 0, 1, False)
@@ -51,11 +53,11 @@ class SVImpl():
         self.avail_bram = spec.total_bram
         self.in_data_ready = Var("in_data_ready", True, 0, 1, False)
 
-    def alloc_bram(self):
+    def alloc_bram(self, path):
         for mod in self.modules:
             if isinstance(mod, VWB_MAC):
-                gen_bram_file(f"data/{mod.wfile.fname}.mem", mod.working_regs, mod.wfile.buffer)
-                gen_bram_file(f"data/{mod.bfile.fname}.mem", mod.working_regs, mod.bfile.buffer)
+                gen_bram_file(Path(path) / f"data/{mod.wfile.fname}.mem", mod.working_regs, mod.wfile.buffer)
+                gen_bram_file(Path(path) / f"data/{mod.bfile.fname}.mem", mod.working_regs, mod.bfile.buffer)
 
                 self.avail_bram -= mod.nbits * (len(mod.wfile.buffer) + len(mod.bfile.buffer))
             #WRITEME: allocate correct from class
@@ -95,45 +97,50 @@ class SVImpl():
 
     def make_sv(self):
         input_fifo = self.modules[0]
-        input_fifo.req_chunk_in.name = "wr_in_master"
-        input_fifo.in_data.name = "in_data_master"
-        input_fifo.clk_in = Var("clk_100mhz", True, 0, 1, False)
-        input_fifo.rst_in = Var("sys_rst", True, 0, 1, False)
+        input_fifo.elements_per_write = self.modules[1].in_vec_size
+        input_fifo.req_chunk_in.name = "in_data_ready"
+        input_fifo.req_chunk_in.defined = True
+
+        input_fifo.in_data.name = "in_data_top"
+        input_fifo.in_data.defined = True
+        input_fifo.clk_in = Var("clk_in", True, 0, 1, False)
+        input_fifo.rst_in = Var("rst_in", True, 0, 1, False)
 
         output_fifo = self.modules[-1]
-        output_fifo.req_chunk_out.name = "rd_out_master"
-        output_fifo.write_out_data.name = "out_data_master"
-        output_fifo.clk_in = Var("clk_100mhz", True, 0, 1, False)
-        output_fifo.rst_in = Var("sys_rst", True, 0, 1, False)
+        output_fifo.req_chunk_out.name = "rd_out_top"
+        output_fifo.req_chunk_out.defined = True
+        
+        output_fifo.write_out_data.name = "out_data_top"
+        output_fifo.write_out_data.defined = True
+
+        output_fifo.clk_in = Var("clk_in", True, 0, 1, False)
+        output_fifo.rst_in = Var("rst_in", True, 0, 1, False)
 
         first_proc_node = self.modules[1]
         first_proc_node.in_data_ready.name = "in_data_ready"
         first_proc_node.in_data_ready.defined = True
 
         last_proc_node = self.modules[-2]
-        last_proc_node.out_vec_valid.name = "out_data_ready"
+        last_proc_node.out_vec_valid.name = "out_data_valid"
         last_proc_node.out_vec_valid.defined = True
         #chr(92) is a newline character
-        return f"""
-{input_fifo.systemverilog()}
-{output_fifo.systemverilog()}
-
-module MLInference(
+        return f"""`timescale 1ps/1ps
+`default_nettype none
+module {self.tlname} (
     input wire clk_in,
     input wire rst_in,
     input wire in_data_ready,
-    output logic out_data_ready
+    input wire [{self.modules[1].in_vec_size-1}:0][{self.modules[0].nbits}-1:0] in_data_top,
+    input wire rd_out_top,
+    output logic out_data_valid,
+    output logic [{self.modules[1].in_vec_size-1}:0][{self.modules[0].nbits}-1:0] out_data_top
 );
 
-  {chr(92).join([mod.systemverilog() for mod in self.modules[1:-1]])}
+{input_fifo.systemverilog()}
+
+{output_fifo.systemverilog()}
+
+{chr(92).join([mod.systemverilog() for mod in self.modules[1:-1]])}
 
 endmodule;
-
-logic ml_inf_valid;
-MLInference ml_inf(
-    .clk_in(clk_100mhz),
-    .rst_in(sys_rst),
-    .in_data_ready(in_data_ready_master),
-    .out_data_ready(ml_inf_valid)
-);
 """
