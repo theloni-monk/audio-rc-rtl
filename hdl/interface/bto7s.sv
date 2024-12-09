@@ -1,3 +1,4 @@
+ // prevents system from inferring an undeclared logic (good practice)
 module bto7s(
         input wire [3:0]   x_in,
         output logic [6:0] s_out
@@ -25,4 +26,5 @@ module bto7s(
         endcase
     end
     assign s_out = {_out[0],_out[1],_out[2],_out[3],_out[4],_out[5],_out[6]};
-endmodule
+endmodule;
+

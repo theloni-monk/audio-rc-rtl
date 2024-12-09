@@ -1,5 +1,4 @@
-`timescale 1ns / 1ps
-`default_nettype none // prevents system from inferring an undeclared logic (good practice)
+ // prevents system from inferring an undeclared logic (good practice)
 
 module v_bshift
 #(  parameter InVecLength,
@@ -72,6 +71,4 @@ end
 
 assign out_vector_valid = vec_out_idx == 0;
 
-endmodule
-
-`default_nettype wire
+endmodule;

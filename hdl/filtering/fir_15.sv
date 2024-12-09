@@ -25,7 +25,6 @@ module fir_15 #
   localparam NUM_COEFFS = 15;
   logic signed [7:0] coeffs [NUM_COEFFS-1 : 0];
 
-  //TODO-parameterize fir coeffs in file
   //initializing values
   initial begin //updated you coefficients
     coeffs[0] = -8'sd2;
@@ -66,7 +65,7 @@ module fir_15 #
 
     m00_axis_tdata = taps[0];
   end
- //FIXME: spits some junk after tlast, should clear taps
+
   always_ff @(posedge s00_axis_aclk) begin
   if(~s00_axis_aresetn | (~m00_axis_aresetn)) begin // annoying active low reset
     // RESET

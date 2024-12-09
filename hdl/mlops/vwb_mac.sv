@@ -1,4 +1,3 @@
-`timescale 1ns / 1ps
 `default_nettype none // prevents system from inferring an undeclared logic (good practice)
 
 module vwb_mac
@@ -60,14 +59,14 @@ xilinx_single_port_ram_read_first #(
 );
 
 
-genvar i
+genvar i;
 generate
   for (i=0; i < WorkingRegs; i++) begin
-    mac1d_fplib#(.I(4), .Q(12))(
-      .m($signed(weight_regs[WorkingRegs -1 -i])), 
-      .x($signed(in_data[i])), 
-      .b($signed(bias_regs[WorkingRegs -1 -i])), 
-      .y($signed(write_out_data[i])))
+    mac1d mac (
+      .m($signed(weight_regs[WorkingRegs -1 -i])),
+      .x($signed(in_data[i])),
+      .b($signed(bias_regs[WorkingRegs -1 -i])),
+      .y(write_out_data[i]));
   end
 endgenerate
 
@@ -75,7 +74,6 @@ always_ff @(posedge clk_in) begin
   if(~rst_in) begin // axi standard reset active low
     vec_in_idx <= 0;
     vec_out_idx <= WorkingRegs;
-    bias_ptr <= 0;
     state <= WAITING;
     req_chunk_in <= 0;
     req_chunk_out <= 0;
@@ -86,7 +84,6 @@ always_ff @(posedge clk_in) begin
           vec_out_idx <= WorkingRegs >= InVecLength ? 0 : WorkingRegs;
           req_chunk_in <= WorkingRegs < InVecLength;
           req_chunk_out <= 1;
-          bias_ptr <= InVecLength/WorkingRegs > 1;
           state <= PROCESSING;
         end else begin
           vec_out_idx <= WorkingRegs;
@@ -102,7 +99,6 @@ always_ff @(posedge clk_in) begin
         vec_out_idx <= WorkingRegs;
         req_chunk_out <= in_data_ready;
       end else begin
-        bias_ptr <= bias_ptr + 1;
         req_chunk_in <= 1;
         req_chunk_out <= 1;
       end
@@ -112,6 +108,5 @@ end
 
 assign out_vector_valid = vec_out_idx == 0;
 
-endmodule
-
+endmodule;
 `default_nettype wire

@@ -1,5 +1,4 @@
-`timescale 1ns / 1ps
-`default_nettype none // prevents system from inferring an undeclared logic (good practice)
+ // prevents system from inferring an undeclared logic (good practice)
 module vw_matmul
 #(  parameter InVecLength,
     parameter OutVecLength,
@@ -53,14 +52,17 @@ xilinx_single_port_ram_read_first #(
   .douta(weight_regs)
 );
 
-genvar i
-generate 
+genvar i;
+generate
   for (i=0; i < WorkingRegs; i++) begin
-    macc1d_fplib(
-      .m($signed(weight_regs[WorkingRegs - 1 -i])), 
-      .x($signed(vector_regs[i])), 
-      .b(0), 
-      .y($signed(product_regs[i])))
+    sfp #(2, 4) m($signed(weight_regs[WorkingRegs -1 -i]));
+    sfp #(2, 4) x($signed(in_data[i]));
+    sfp #(2, 4) y($signed(write_out_data[i]));
+    mac1d_fplib #(.I(2), .Q(6)) mac (
+      .m(m),
+      .x(x),
+      .b(0),
+      .y(y));
   end
 endgenerate
 
@@ -166,4 +168,3 @@ end
 endmodule;
 
 
-`default_nettype wire

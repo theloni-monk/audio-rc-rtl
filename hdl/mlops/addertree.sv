@@ -1,7 +1,3 @@
-`timescale 1ps/1ps
-`default_nettype none
-//TODO: validate and optimize to only use in_bits in at top level
-
 module addertree_inner #(parameter Elements, parameter NBits)(
   input wire clk_in,
   input wire [Elements-1:0][NBits-1:0] in,
@@ -34,8 +30,7 @@ generate
     assign out = leftout + rightout;
   end
 endgenerate
-endmodule
-
+endmodule;
 module addertree #( parameter Elements,
                     parameter NBitsIn,
                     parameter NBitsOut)(
@@ -51,7 +46,9 @@ generate
   end else begin
     // promote to output size
     logic [Elements-1:0][NBitsOut-1:0] in_expanded;
-    foreach(in[i]) assign in_expanded[i] = $signed(in[i]);   
+    always_comb begin
+      foreach(in[i]) in_expanded[i] = $signed(in[i]);
+    end
     always_ff @(posedge clk_in) begin
       leftin <= in_expanded[Elements-1:Elements/2];
       rightin <= in_expanded[Elements/2-1:0];
@@ -73,5 +70,4 @@ generate
     assign out = leftout + rightout;
   end
 endgenerate
-endmodule
-`default_nettype wire
+endmodule;

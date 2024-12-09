@@ -116,8 +116,7 @@ module xilinx_true_dual_port_read_first_2_clock_ram #(
         depth = depth >> 1;
   endfunction
 
-endmodule
-
+endmodule;
 // The following is an instantiation template for xilinx_true_dual_port_read_first_2_clock_ram
 /*
   //  Xilinx True Dual Port RAM, Read First, Dual Clock

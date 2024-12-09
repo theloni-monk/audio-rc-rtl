@@ -77,8 +77,7 @@ module xilinx_single_port_ram_read_first #(
         depth = depth >> 1;
   endfunction
 
-endmodule
-
+endmodule;
 // The following is an instantiation template for xilinx_single_port_ram_read_first
 /*
   //  Xilinx Single Port Read First RAM

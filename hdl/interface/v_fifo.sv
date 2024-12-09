@@ -1,7 +1,7 @@
-`timescale 1ns / 1ps
 `default_nettype none // prevents system from inferring an undeclared logic (good practice)
 
 // TODO: force bram syntehsis
+// TODO: stale address tracking and overwrite flag
 module v_fifo #(
   parameter  VecElements,
   parameter  ElementsPerWrite,
@@ -35,6 +35,5 @@ end
 
 assign rd_data = mem[rd_ptr +: 8*ElementsPerRead];
 
-endmodule
-
+endmodule;
 `default_nettype wire
