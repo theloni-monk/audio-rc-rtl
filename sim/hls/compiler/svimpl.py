@@ -19,8 +19,6 @@ class FPGASpec():
     total_bram: int
     max_clock: int
 
-#TODO: fixed point bram
-
 def next_smallest_factor(vec_size, max_factor):
     largest_under = 1
     for i in sorted(factors(vec_size)):
@@ -60,22 +58,18 @@ class SVImpl():
                 gen_bram_file(Path(path) / f"data/{mod.bfile.fname}.mem", mod.working_regs, mod.bfile.buffer)
 
                 self.avail_bram -= mod.nbits * (len(mod.wfile.buffer) + len(mod.bfile.buffer))
-            #WRITEME: allocate correct from class
-            # elif type(mod) == Bias:
-            #     mod.biasfile = f"data/{mod.name}_bfile.mem"
-            #     gen_bram_file(f"data/{mod.name}_bfile.mem", mod.working_regs, mod.bram)
-            #     self.avail_bram -= mod.bram.size * 8
+
         assert self.avail_bram > 0, "Insufficient BRAM"
 
-    def alloc_regs(self):
+    def alloc_regs(self, greedy=True):
         num_mult_mods = sum(1 if isinstance(mod, (VW_Matmul, VWB_MAC)) else 0 for mod in self.modules)
         mult_cycles = self.modules[2].in_vec_size * self.modules[1].in_vec_size // next_smallest_factor(self.modules[1].in_vec_size, self.spec.num_dsp // num_mult_mods + 1)
         for mod in self.modules:
-            if isinstance(mod, (VW_Matmul, VWB_MAC)):
+            if isinstance(mod, (VW_Matmul)):
                 mod.working_regs = next_smallest_factor(mod.in_vec_size, self.spec.num_dsp//num_mult_mods + 1)
                 mod.write_out_data.num_elements = 1
             else:
-                mod.working_regs = max(1, mod.in_vec_size // mult_cycles)
+                mod.working_regs = mod.in_vec_size if greedy else max(1, mod.in_vec_size // mult_cycles)
                 mod.write_out_data.num_elements = mod.working_regs
             mod.in_data.num_elements = mod.working_regs
 
@@ -92,21 +86,22 @@ class SVImpl():
                 fifo.in_data.num_elements = 1
             fifo.elements_per_read = self.modules[idx+1].working_regs
         self.modules[-1].elements_per_write = self.modules[-2].working_regs
-        self.modules[-1].elements_per_read = self.modules[-1].in_vec_size
+        self.modules[-1].elements_per_read = self.modules[-2].in_vec_size
         self.modules[-1].write_out_data.num_elements = self.modules[-1].in_vec_size
 
     def make_sv(self):
         input_fifo = self.modules[0]
+        input_fifo.name = "v_fifo_in_top"
         input_fifo.elements_per_write = self.modules[1].in_vec_size
         input_fifo.req_chunk_in.name = "in_data_ready"
         input_fifo.req_chunk_in.defined = True
-
         input_fifo.in_data.name = "in_data_top"
         input_fifo.in_data.defined = True
         input_fifo.clk_in = Var("clk_in", True, 0, 1, False)
         input_fifo.rst_in = Var("rst_in", True, 0, 1, False)
 
         output_fifo = self.modules[-1]
+        output_fifo.name = "v_fifo_out_top"
         output_fifo.req_chunk_out.name = "rd_out_top"
         output_fifo.req_chunk_out.defined = True
         

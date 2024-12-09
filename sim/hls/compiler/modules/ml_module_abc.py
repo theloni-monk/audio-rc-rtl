@@ -29,7 +29,7 @@ class BRAMFile:
     buffer: np.ndarray
     @property
     def path(self):
-        return f"hdl/dummymodels/data/{self.fname}.mem"
+        return f"../sim/data/{self.fname}.mem"
     def __repr__(self):
         return self.fname
 
