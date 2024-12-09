@@ -17,36 +17,36 @@ from onnx import TensorProto
 from hls.compiler import parsemodel, svimpl
 
 from theloni_simlib.bespoke import *
+from theloni_simlib.boards import EpsScoreboard
 from theloni_simlib.ctb_util import *
 
-from fixedpoint import FixedPoint
+class VWBMACTester(BspkModuleTester):
+    def __init__(self, dut, modelpath, in_dim, *args, **kwargs):
+        super().__init__(dut, modelpath, in_dim, EpsScoreboard, *args, **kwargs)
 
+    def _gen_indata(self):
+        return np.random.rand(self.in_dim).astype(dtype=np.float32)
 
-
+CYCLES = 2
 @cocotb.test()
 async def test_vwb_macc(dut):
     """cocotb test for vwbmacc"""
-    # instantiate fifos
-    # instantiate uut
-    # wrap fifos in monitors and driver
+    tlen = int(os.getenv("TLEN"))
+    mdl_dim = int(os.getenv("MDIM"))
+    mdl_path = os.getenv("MPATH")
+    test = VWBMACTester(dut, mdl_path, mdl_dim, debug=False)
+    await test.startup()
 
-    inm = BspkFIFOMonitor(dut.v_fifo_0, "main_in_mon", dut.clk_in, dut.in_data_ready)
-    outm = BspkFIFOMonitor(dut.v_fifo_1, "main_out_mon", dut.clk_in,  dut.out_data_valid)
-    ind = BspkFIFODriver(dut.v_fifo_0,  "main_in_drv", dut.clk_in,  dut.in_data_ready)
+    await test.run_io_test(tlen)
 
-    cocotb.start_soon(generate_clock(dut.clk_in))
-    await reset(dut.rst_in, dut.clk_in)
-
-    ind.append(np.zeros(6))
-
-    await ClockCycles(dut.clk_in, 1000)
-    dut._log.info(f"Processed {inm.stats.received_transactions} transactions in and {outm.stats.received_transactions} out")
-    assert inm.stats.received_transactions==outm.stats.received_transactions, f"Transaction Count doesn't match! :/"
+    await ClockCycles(dut.clk_in, tlen*CYCLES)
+    dut._log.info(f"Processed {test.inm.stats.received_transactions} transactions in and {test.outm.stats.received_transactions} out")
+    assert test.inm.stats.received_transactions==test.outm.stats.received_transactions, f"Transaction Count doesn't match! :/"
 
 """the code below should largely remain unchanged in structure, though the specific files and things
 specified should get updated for different simulations.
 """
-def test_runner(svname):
+def test_runner(svname, mdl_dim, mdl_path, tlen):
     """Simulate the counter using the Python runner."""
     hdl_toplevel_lang = os.getenv("HDL_TOPLEVEL_LANG", "verilog")
     sim = os.getenv("SIM", "icarus")
@@ -75,11 +75,11 @@ def test_runner(svname):
         waves=True,
         verbose=True
     )
-    run_test_args = []
+    test_env = {"MDIM":mdl_dim, "MPATH":mdl_path, "TLEN": tlen}
     runner.test(
         hdl_toplevel=f"{svname}_dummy_tl",
         test_module=f"{svname}_test",
-        test_args=run_test_args,
+        extra_env = test_env,
         verbose=True,
         waves=True
     )
@@ -89,19 +89,17 @@ def make_random_bn_onnx(in_dim, out_dim):
     Y = onnxhelp.make_tensor_value_info(f"Y", TensorProto.FLOAT, [1, out_dim])
     rmean = onnxhelp.make_tensor(   f"rmean", TensorProto.FLOAT, 
                                     [in_dim],
-                                    -np.ones(in_dim))
-                                    # np.random.rand(in_dim))
+                                    np.random.rand(in_dim))
     rvar = onnxhelp.make_tensor(    f"rvar", TensorProto.FLOAT, 
                                     [in_dim],
-                                    np.ones(in_dim))
-                                    # np.random.rand(in_dim))
+                                    10*np.random.rand(in_dim))
 
     scale = onnxhelp.make_tensor(   f"scale", TensorProto.FLOAT, 
                                     [in_dim],
-                                    np.ones(out_dim))
+                                    np.random.rand(in_dim))
     bias = onnxhelp.make_tensor(    f"B", TensorProto.FLOAT, 
                                     [in_dim],
-                                    np.ones(in_dim))
+                                    np.random.rand(in_dim))
 
     bn_node = onnxhelp.make_node("BatchNormalization",
                             ["X", "scale", "B", "rmean", "rvar"],
@@ -133,8 +131,10 @@ def make_testing_tl(dim, tlname):
 
 if __name__ == "__main__":
     tlname = "vwb_mac_dummy_tl"
-    uut_mdl, sv = make_testing_tl(6, tlname)
-    
+    DIM = 11
+    LEN = 1000
+    uut_mdl, sv = make_testing_tl(DIM, tlname)
+    onnx.save_model(uut_mdl, "sim/data/bn_mdl.onnx")
     with open(f"hdl/dummymodels/{tlname}.sv", 'w') as f:
         f.write(sv)
-    test_runner("vwb_mac") #TODO pass onnx model for valid
+    test_runner("vwb_mac", str(DIM), os.path.abspath("sim/data/bn_mdl.onnx"), str(LEN))
