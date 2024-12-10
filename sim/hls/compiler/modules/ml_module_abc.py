@@ -19,10 +19,11 @@ class Var:
         return f"logic {elements_dcl if self.num_elements else ''} {self.name};"
 
     def __repr__(self):
-        return "0" if self.tie_zero else self.name
+        return "1'b0" if self.tie_zero else self.name
 
     def debug(self):
         return f"{vars(self)}"
+
 @dataclass
 class BRAMFile:
     fname: str
@@ -56,7 +57,7 @@ class MLModule(ABC):
     req_chunk_out: Var
     out_vec_valid: Var
 
-    def __init__(self, in_nodes:list, out_nodes:list, instance_num:int, nbits:int=8):
+    def __init__(self, in_nodes:list, out_nodes:list, instance_num:int, nbits:int=12):
         self.name = f"{self.__class__.__name__.lower()}_{instance_num}"
         self.in_nodes = in_nodes
         self.out_nodes = out_nodes

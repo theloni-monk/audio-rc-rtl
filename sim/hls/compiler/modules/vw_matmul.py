@@ -22,7 +22,8 @@ f"""vw_matmul #(
   .InVecLength({self.in_vec_size}),
   .OutVecLength({self.out_vec_size}),
   .WorkingRegs({self.working_regs}),
-  .WeightFile("{self.wfile}")) 
+  .AccumBits({self.nbits}),
+  .WeightFile("{self.wfile}"))
   {self.name}
   (
   .clk_in({self.clk_in}),

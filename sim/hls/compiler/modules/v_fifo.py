@@ -20,7 +20,7 @@ class V_FIFO(MLModule):
         self.in_data_ready = Var("dummy_fifo_in_data_ready", True, 0, 1, True)
 
         self.req_chunk_in = Var(f"wr_en_{instance_num}", False, 0, 1, False)
-        self.in_data = Var(f"wr_data_{instance_num}", False, elements_per_write, self.nbits, False)
+        self.in_data = Var(f"wr_data_{instance_num}", False, elements_per_read, self.nbits, False)
         self.req_chunk_out = Var(f"rd_en_{instance_num}", False, 0, 1, False)
         self.write_out_data = Var(f"rd_data_{instance_num}", False, elements_per_write, self.nbits, False)
 
