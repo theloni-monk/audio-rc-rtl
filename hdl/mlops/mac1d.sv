@@ -29,10 +29,10 @@
 
 
 module mac1d #(
-    parameter IW_M = 2, parameter QW_M = 6, // int/frac width of m
-    parameter IW_X = 2, parameter QW_X = 6, // int/frac width of x
-    parameter IW_B = 2, parameter QW_B = 6, // int/frac width of b
-    parameter IW_Y = 2, parameter QW_Y = 6  // int/frac width of y
+    parameter IW_M = 4, parameter QW_M = 8, // int/frac width of m
+    parameter IW_X = 4, parameter QW_X = 8, // int/frac width of x
+    parameter IW_B = 4, parameter QW_B = 8, // int/frac width of b
+    parameter IW_Y = 4, parameter QW_Y = 8  // int/frac width of y
 )(
     input  logic signed [IW_M + QW_M - 1:0] m,
     input  logic signed [IW_X + QW_X - 1:0] x,

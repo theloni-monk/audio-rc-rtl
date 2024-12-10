@@ -17,23 +17,37 @@ module v_fifo #(
   output logic [ElementsPerRead-1:0][NBits-1:0] rd_data
 );
 
-logic [Depth*VecElements*8-1:0] mem;
-logic [$clog2(Depth*VecElements*8)-1:0] wr_ptr;
-logic [$clog2(Depth*VecElements*8)-1:0] rd_ptr;
+localparam TotalBits = Depth*VecElements*NBits;
+localparam VecLen = VecElements * NBits;
+localparam WrAdv = NBits * ElementsPerWrite;
+localparam RdAdv = NBits*ElementsPerRead;
+logic [TotalBits-1:0] mem;
+logic [$clog2(TotalBits):0] wr_ptr;
+logic [$clog2(TotalBits):0] rd_ptr;
 
 always_ff @(posedge clk_in) begin
-    if (rst_in) begin
+    if (~rst_in) begin
       wr_ptr <= 0;
       rd_ptr <= 0;
-      for(int i = 0; i<Depth*VecElements; i=i+1) mem[8*i +: 8] <= 0;
+      for(int i = 0; i<Depth*VecElements; i=i+1) mem[NBits*i +: NBits] <= 0;
     end else begin
-      wr_ptr <= wr_en ? wr_ptr + (8*ElementsPerWrite) : wr_ptr;
-      rd_ptr <= wrap_rd ? rd_ptr - ((VecElements - ElementsPerRead) * 8) : (rd_en ? rd_ptr + (8*ElementsPerRead) : rd_ptr);
+      if(wr_en) begin
+        if (wr_ptr + WrAdv >= TotalBits) wr_ptr <= 0;
+        else wr_ptr <= wr_ptr + WrAdv;
+        mem[wr_ptr +: NBits*ElementsPerWrite] <= wr_data;
+      end
+      if (wrap_rd) begin
+        rd_ptr <= rd_ptr - TotalBits;
+      end else if(rd_en) begin
+        if (rd_ptr + RdAdv >= TotalBits) rd_ptr <= 0;
+        else rd_ptr <= rd_ptr + RdAdv;
+      end
     end
-    if(wr_en) mem[wr_ptr +: 8*ElementsPerWrite] <= wr_data;
+
 end
 
-assign rd_data = mem[rd_ptr +: 8*ElementsPerRead];
+assign rd_data = mem[rd_ptr +: RdAdv];
 
 endmodule;
+
 `default_nettype wire

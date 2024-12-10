@@ -55,14 +55,11 @@ xilinx_single_port_ram_read_first #(
 genvar i;
 generate
   for (i=0; i < WorkingRegs; i++) begin
-    sfp #(2, 4) m($signed(weight_regs[WorkingRegs -1 -i]));
-    sfp #(2, 4) x($signed(in_data[i]));
-    sfp #(2, 4) y($signed(write_out_data[i]));
-    mac1d_fplib #(.I(2), .Q(6)) mac (
-      .m(m),
-      .x(x),
-      .b(0),
-      .y(y));
+    mac1d mac (
+      .m($signed(weight_regs[WorkingRegs -1 -i])),
+      .x($signed(in_data[i])),
+      .b($signed(0)),
+      .y(write_out_data[i]));
   end
 endgenerate
 
