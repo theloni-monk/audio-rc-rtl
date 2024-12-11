@@ -104,7 +104,7 @@ def test_runner(svname, mdl_dim, mdl_path, tlen, debug):
     )
 
 
-def make_random_bn_onnx(in_dim, out_dim):
+def make_random_gemm_onnx(in_dim, out_dim):
     X = onnxhelp.make_tensor_value_info(f"X", TensorProto.FLOAT, [1, in_dim])
     Y = onnxhelp.make_tensor_value_info(f"Y", TensorProto.FLOAT, [1, out_dim])
 
@@ -138,9 +138,9 @@ def make_random_bn_onnx(in_dim, out_dim):
 
 
 def make_testing_tl(idim, odim, tlname):
-    mdl = make_random_bn_onnx(idim, odim)
+    mdl = make_random_gemm_onnx(idim, odim)
     spec = svimpl.FPGASpec(120, 600_000, 2_700_000, 100_000)
-    fpga_module = parsemodel.parse_model(mdl, idim, spec)
+    fpga_module = parsemodel.gen_sv_top(mdl, idim, spec)
     fpga_module.alloc_regs()
     fpga_module.alloc_bram("sim")
     fpga_module.tlname = tlname

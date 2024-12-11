@@ -130,7 +130,7 @@ def make_random_onnx_mdl(in_dim, out_dim):
 def make_testing_tl(dim, tlname):
     mdl = make_random_onnx_mdl(dim, dim)
     spec = svimpl.FPGASpec(120, 600_000, 2_700_000, 100_000)
-    fpga_module = parsemodel.parse_model(mdl, dim, spec)
+    fpga_module = parsemodel.gen_sv_top(mdl, dim, spec)
     fpga_module.alloc_regs()
     fpga_module.alloc_bram("sim")
     fpga_module.tlname = tlname

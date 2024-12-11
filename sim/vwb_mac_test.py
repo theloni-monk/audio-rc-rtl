@@ -25,7 +25,7 @@ class VWBMACTester(BspkModuleTester):
         super().__init__(dut, modelpath, in_dim, board, False, debug, **kwargs)
 
     def _gen_indata(self):
-        return np.random.rand(self.in_dim).astype(dtype=np.float32)
+        return 0.2*np.random.randn(self.in_dim).astype(dtype=np.float32)
 
 
 CYCLES = 2
@@ -142,7 +142,7 @@ def make_random_bn_onnx(in_dim, out_dim):
 def make_testing_tl(dim, tlname):
     mdl = make_random_bn_onnx(dim, dim)
     spec = svimpl.FPGASpec(120, 600_000, 2_700_000, 100_000)
-    fpga_module = parsemodel.parse_model(mdl, dim, spec)
+    fpga_module = parsemodel.gen_sv_top(mdl, dim, spec)
     fpga_module.alloc_regs()
     fpga_module.alloc_bram("sim")
     fpga_module.tlname = tlname
