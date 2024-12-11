@@ -12,7 +12,7 @@ module v_fifo #(
   input wire rst_in,
   input wire wr_en,
   input wire [ElementsPerWrite-1:0][NBits-1:0] wr_data,
-  input wire wrap_rd,
+  input wire ptr_rst,
   input wire rd_en,
   output logic [ElementsPerRead-1:0][NBits-1:0] rd_data
 );
@@ -36,7 +36,7 @@ always_ff @(posedge clk_in) begin
         else wr_ptr <= wr_ptr + WrAdv;
         mem[wr_ptr +: NBits*ElementsPerWrite] <= wr_data;
       end
-      if (wrap_rd) begin
+      if (ptr_rst) begin
         rd_ptr <= rd_ptr - TotalBits;
       end else if(rd_en) begin
         if (rd_ptr + RdAdv >= TotalBits) rd_ptr <= 0;
