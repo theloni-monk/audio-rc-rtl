@@ -2,7 +2,8 @@ exploration/optim/*
 exploration/logs/*
 exploration/data/torchfsdd/recordings/*
 exploration/ckpt/*
-
+sim_build/*
+sim/data/*
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
