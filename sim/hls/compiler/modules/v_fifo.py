@@ -1,11 +1,11 @@
-from .ml_module_abc import *
+from .sv_module_abc import *
 
-class V_FIFO(MLModule):
+class V_FIFO(SVModule):
     elements_per_read: int
     elements_per_write: int
     depth: int
 
-    wrap_rd: Var
+    ptr_rst: Var
 
     def __init__(self, i_nodes, o_nodes, instance_num, vec_size, elements_per_read, elements_per_write, depth, clk_in, rst_in):
         super().__init__(i_nodes, o_nodes, instance_num)
@@ -24,12 +24,12 @@ class V_FIFO(MLModule):
         self.req_chunk_out = Var(f"rd_en_{instance_num}", False, 0, 1, False)
         self.write_out_data = Var(f"rd_data_{instance_num}", False, elements_per_write, self.nbits, False)
 
-        self.wrap_rd = Var(f"wrap_rd_{instance_num}", False, 0, 1, False)
+        self.ptr_rst = Var(f"ptr_rst_{instance_num}", False, 0, 1, False)
         self.working_regs = -1
 
     @property
     def variables(self):
-        return super().variables + [self.wrap_rd]
+        return super().variables + [self.ptr_rst]
 
     def systemverilog(self):
         # define captured vars
@@ -49,7 +49,7 @@ f"""v_fifo #(
             .wr_data({self.in_data}),
             .rd_en({self.req_chunk_out}),
             .rd_data({self.write_out_data}),
-            .wrap_rd({self.wrap_rd})
+            .ptr_rst({self.ptr_rst})
         );
 """)
 

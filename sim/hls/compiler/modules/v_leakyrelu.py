@@ -1,14 +1,15 @@
-from .ml_module_abc import *
+from .sv_module_abc import *
 
-class ReLU(MLModule):
+class V_LeakyReLU(SVModule):
 
     def __init__(self, inodes, onodes, instance_num):
         super().__init__(inodes, onodes, instance_num)
 
     def systemverilog(self):
         defs = [v.define() for v in self.variables]
-        defs.append(f"""ReLU #(
+        defs.append(f"""v_leakyrelu #(
   .InVecLength({self.in_vec_size}),
+  .NBits({self.nbits}),
   .WorkingRegs({self.working_regs})) {self.name} (
   .clk_in({self.clk_in}),
   .rst_in({self.rst_in}),

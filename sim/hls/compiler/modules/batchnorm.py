@@ -1,6 +1,6 @@
-from .ml_module_abc import *
+from .sv_module_abc import *
 
-class VWB_MAC(MLModule):
+class VWB_MAC(SVModule):
 
     wfile: BRAMFile
     bfile: BRAMFile

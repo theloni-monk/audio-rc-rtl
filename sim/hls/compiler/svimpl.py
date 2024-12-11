@@ -10,14 +10,7 @@ import onnx
 
 from .codebram import gen_bram_file
 from .modules import *
-from .modules.ml_module_abc import *
-
-@dataclass
-class FPGASpec():
-    num_dsp: int
-    num_reg: int
-    total_bram: int
-    max_clock: int
+from .modules.sv_module_abc import *
 
 def next_smallest_factor(vec_size, max_factor):
     largest_under = 1
@@ -28,10 +21,20 @@ def next_smallest_factor(vec_size, max_factor):
             break
     return largest_under
 
-class SVImpl():
+@dataclass
+class FPGASpec():
+    num_dsp: int
+    num_reg: int
+    total_bram: int
+    max_clock: int
 
-    model: onnx.ModelProto
-
+class SVModNode():
+    """ A collection class that wraps a sequence of modules(or single module) in fifos
+        All modules in the list must have exactly one input and one output term
+        Multi-input multi-output modules are handled via concatination, cloning, or splitting as necessary
+        The parsing process is done by relaxation of sequential operations into chains, 
+        which are viewed as nodes followed by concat, split, or clone edges
+    """
     in_dim: int
     out_dim: int
     spec: FPGASpec
@@ -40,11 +43,10 @@ class SVImpl():
     clk: Var
     rst: Var
     in_data_ready: Var
-    modules: List[MLModule]
+    modules: List[SVModule]
 
-    def __init__(self, model, spec, tlname = "ml_inf"):
+    def __init__(self,  spec, tlname = "ml_inf"):
         self.tlname = tlname
-        self.model = model
         self.clk = Var("clk_in", True, 0, 1, False)
         self.rst = Var("rst_in", True, 0, 1, False)
         self.spec = spec
@@ -63,19 +65,19 @@ class SVImpl():
                               mod.working_regs if isinstance(mod, VWB_MAC) else 1,
                               mod.bfile.buffer)
                 elements_written += len(mod.bfile.buffer)
-
             self.avail_bram -= mod.nbits * elements_written
 
         assert self.avail_bram > 0, "Insufficient BRAM"
 
     def alloc_regs(self, greedy=True):
         num_mult_mods = sum(1 if isinstance(mod, (VW_Matmul, VWB_Gemm, VWB_MAC)) else 0 for mod in self.modules)
-        mult_cycles = self.modules[2].in_vec_size * self.modules[1].in_vec_size // next_smallest_factor(self.modules[1].in_vec_size, self.spec.num_dsp // num_mult_mods + 1)
+        mult_cycles = 1 if greedy else self.modules[2].in_vec_size * self.modules[1].in_vec_size // next_smallest_factor(self.modules[1].in_vec_size, self.spec.num_dsp // num_mult_mods + 1)
+
         for mod in self.modules:
             if isinstance(mod, (VW_Matmul, VWB_Gemm)):
                 mod.working_regs = next_smallest_factor(mod.in_vec_size, self.spec.num_dsp//num_mult_mods + 1)
                 mod.write_out_data.num_elements = 1
-                print(f"##### setting {mod} write out data els to 1 #####")
+
             else:
                 mod.working_regs = mod.in_vec_size if greedy else max(1, mod.in_vec_size // mult_cycles)
                 mod.write_out_data.num_elements = mod.working_regs
@@ -107,6 +109,66 @@ class SVImpl():
             exit_fifo.elements_per_write = self.modules[-2].working_regs
             exit_fifo.in_data.num_elements = exit_fifo.in_vec_size
 
+
+    @property
+    def is_source(self):
+        return self.in_nodes is []
+
+    @property
+    def is_sink(self):
+        # handles recurrent relations by defining a node with already visited outputs as terminal
+        if self.out_nodes is []:
+            return True
+        onodes_visited = True
+        for node in self.out_nodes:
+            onodes_visited &= node.visited
+        return onodes_visited
+
+
+class SVImplGraph():
+    in_dim: int
+    out_dim: int
+    spec: FPGASpec
+    avail_bram: int
+
+    clk: Var
+    rst: Var
+    in_data_ready: Var
+    nodes: List[SVModNode]
+    joins: List[Cat]
+    splits: list # not implemented
+    clones: list # not implemented
+
+    def __init__(self, spec, name = "ml_inf"):
+        self.name = name
+        self.clk = Var("clk_in", True, 0, 1, False)
+        self.rst = Var("rst_in", True, 0, 1, False)
+        self.spec = spec
+        self.avail_bram = spec.total_bram
+        self.in_data_readys = [Var(f"in_data_ready_{i}", True, 0, 1, False) for i in range(len(ins))]
+
+
+class SVImplTop:
+
+    in_dim: int
+    out_dim: int
+    spec: FPGASpec
+    avail_bram: int
+
+    clk: Var
+    rst: Var
+    in_data_ready: Var
+    compute_graph: SVImplGraph
+
+    def __init__(self, graph:SVImplGraph, spec:FPGASpec, tlname = "ml_inf"):
+        self.tlname = tlname
+        self.clk = Var("clk_in", True, 0, 1, False)
+        self.rst = Var("rst_in", True, 0, 1, False)
+        self.spec = spec
+        self.avail_bram = spec.total_bram
+        self.in_data_ready = Var("in_data_ready", True, 0, 1, False)
+
+
     def make_sv(self):
         input_fifo = self.modules[0]
         input_fifo.name = "v_fifo_in_top"
@@ -134,7 +196,7 @@ class SVImpl():
         first_proc_node.in_data_ready.defined = True
 
         last_proc_node = self.modules[-2]
-        last_proc_node.out_vec_valid.name = "ovalid" # FIXMEL should not be mapped to chunk out
+        last_proc_node.out_vec_valid.name = "ovalid"
         last_proc_node.out_vec_valid.defined = True
         #chr(92) is a newline character
         return f"""`timescale 1ps/1ps

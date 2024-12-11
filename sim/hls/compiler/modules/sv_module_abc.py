@@ -34,14 +34,14 @@ class BRAMFile:
     def __repr__(self):
         return self.fname
 
-class MLModule(ABC):
+class SVModule(ABC):
     name: str
     instance_num: int
     in_nodes: list
     out_nodes: list
     visited: bool # for dfs traversal
 
-    in_vec_size: int
+    in_vec_size: int | Tuple[int]
     working_regs: int
     nbits: int
     wfile: BRAMFile | None
@@ -57,14 +57,14 @@ class MLModule(ABC):
     req_chunk_out: Var
     out_vec_valid: Var
 
-    def __init__(self, in_nodes:list, out_nodes:list, instance_num:int, nbits:int=12):
-        self.name = f"{self.__class__.__name__.lower()}_{instance_num}"
+    def __init__(self, in_nodes:list, out_nodes:list, instance_id:str, nbits:int=12):
+        self.name = f"{self.__class__.__name__.lower()}_{instance_id}"
         self.in_nodes = in_nodes
         self.out_nodes = out_nodes
-        self.instance_num = instance_num
+        self.instance_num = instance_id
         self.visited = False
         self.nbits = nbits
-        self.out_vec_valid = Var(f"{self.name}_out_vec_valid_{instance_num}", False, 0, 1, False)
+        self.out_vec_valid = Var(f"{self.name}_out_vec_valid_{instance_id}", False, 0, 1, False)
 
     def __repr__(self):
         return f"{self.name}:(1x{self.in_vec_size}) [{list(v for v in self.variables)}]"
@@ -78,17 +78,3 @@ class MLModule(ABC):
                 self.write_out_data,
                 self.req_chunk_in, self.req_chunk_out,
                 self.out_vec_valid]
-
-    @property
-    def is_source(self):
-        return self.in_nodes is []
-
-    @property
-    def is_sink(self):
-        # handles recurrent relations by defining a node with already visited outputs as terminal
-        if self.out_nodes is []:
-            return True
-        onodes_visited = True
-        for node in self.out_nodes:
-            onodes_visited &= node.visited
-        return onodes_visited

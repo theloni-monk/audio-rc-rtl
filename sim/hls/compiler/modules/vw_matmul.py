@@ -1,6 +1,6 @@
-from .ml_module_abc import *
+from .sv_module_abc import *
 
-class VW_Matmul(MLModule):
+class VW_Matmul(SVModule):
 
     out_vec_size: int
     weightfile: str
