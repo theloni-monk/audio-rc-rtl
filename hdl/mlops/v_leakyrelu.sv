@@ -1,7 +1,9 @@
- // prevents system from inferring an undeclared logic (good practice)
-// TODO: make leaky
+`default_nettype none
+// prevents system from inferring an undeclared logic (good practice)
+
 module v_leakyrelu
 #(  parameter InVecLength,
+    parameter NBits,
     parameter WorkingRegs ) (
     input wire clk_in,
     input wire rst_in,
@@ -15,7 +17,7 @@ module v_leakyrelu
 
 typedef enum logic {WAITING, PROCESSING} relu_state;
 relu_state state;
-logic signed [WorkingRegs-1:0][NBits-1:0] working_regs;
+logic signed [WorkingRegs-1:0][3:0] working_regs;
 // assumes single-cycle fifo
 logic [$clog2(InVecLength):0] vec_in_idx;
 logic [$clog2(InVecLength):0] vec_out_idx; // InVecLength = OutVecLength, one-to-one map
@@ -23,9 +25,9 @@ logic vec_op_complete;
 
 always_comb begin
   vec_op_complete = vec_out_idx == 0;
-  for(integer i = 0; i < WorkingRegs; i = i + 1) begin
-    write_out_data[i] = $signed(in_data[i]) < 0 ? $signed(in_data[i]) >> 7: in_data[i]; //ReLU with 128 leak factor
-  end
+  foreach(working_regs[i]) working_regs[i] = $signed(in_data[i])>>8;
+  foreach(write_out_data[i]) write_out_data[i] = $signed(working_regs[i]) < 0 ?  $signed(in_data[i]) >>> 7: //ReLU with 128 leak factor
+                                                                                  in_data[i];
 end
 
 always_ff @(posedge clk_in) begin
@@ -40,17 +42,13 @@ always_ff @(posedge clk_in) begin
         if(in_data_ready) begin
           vec_in_idx <= WorkingRegs >= InVecLength ? 0: WorkingRegs;
           vec_out_idx <= WorkingRegs >= InVecLength ? 0: WorkingRegs;
-          working_regs <= 0;
           req_chunk_out <= 1;
-          req_chunk_in <= WorkingRegs < InVecLength;;
+          req_chunk_in <= WorkingRegs < InVecLength;
           state <= PROCESSING;
         end else begin
           vec_out_idx <= WorkingRegs;
           req_chunk_in <= 0;
           req_chunk_out <= 0;
-          for(int i = 0; i<WorkingRegs; i=i+1) begin
-            working_regs[i] = -8'sd1; // sentinal value
-          end
         end
     end else if (state == PROCESSING) begin
       vec_in_idx <= vec_in_idx + WorkingRegs >= InVecLength ? 0 : vec_in_idx + WorkingRegs;
@@ -71,3 +69,4 @@ end
 assign out_vector_valid = vec_out_idx == 0;
 
 endmodule;
+`default_nettype wire
