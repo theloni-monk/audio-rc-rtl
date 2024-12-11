@@ -14,18 +14,20 @@ What I am expected to complete
 
 ### HDL
 
-Port to Fixed Point Q2.6:
+Port to Fixed Point Q4.8:
 - ~~[*] vwb macc~~
 - ~~[*] vw matmul~~
 
 Implement
 
-- [ ] vector-vector Add
+- [ ] vector-vector Add (interleaved)
 - ~~[*] Gemm~~
-- [ ] Clip (-1, 1)
+- [*] Clip (-1, 1)
 - ~~[*] Bitshift~~
 - ~~[*] LeakyReLU128~~
-- [ ] Concat
+- [*] Concat
+- [ ] Clone
+- [ ] Split
 
 ### Testbench
 
@@ -33,7 +35,13 @@ Implement
   - ~~[*] bespoke fifo driver~~
   - ~~[*] bespoke fifo monitor~~
   - ~~[*] sw model~~
-- [*] Validate vw_matmul and vwb_gemm in cocotb
+- ~~[*] Validate vwb_gemm in cocotb~~
+- [ ] Validate remaining models
+  -~~[*] leakyrelu~~
+  - [ ] bshiftmul
+  - [ ] clip
+  - [ ] vvadd
+  - [*] concat
 - [ ] 1step
 - [ ] loopback
 - [ ] integration (fake pqmf driver)
@@ -42,6 +50,7 @@ Implement
 
 - ~~[*] gen fixed-point weight files~~
 - ~~[*] BatchNorm as vwb_macc~~
+- [*] nonlinear traversal
 - [ ] pow2 mul as v_bshift
 
 ### Writeup
