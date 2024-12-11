@@ -1,8 +1,4 @@
-from dataclasses import dataclass
-from functools import partial
-import random
 from abc import ABC, abstractmethod
-from enum import Enum
 from typing import List
 
 import cocotb
@@ -10,15 +6,12 @@ import cocotb.binary
 import cocotb.types
 import cocotb.types
 import numpy as np
-from cocotb.triggers import (ClockCycles, FallingEdge, First, Join, ReadOnly,
-                             RisingEdge, Timer, with_timeout)
+from cocotb.triggers import (ClockCycles, FallingEdge, ReadOnly, RisingEdge)
 from cocotb_bus.drivers import BusDriver
 from cocotb_bus.monitors import BusMonitor
 from fixedpoint import FixedPoint
 
-import onnx
 import onnxruntime as ort
-from onnx.reference import ReferenceEvaluator
 
 from .ctb_util import *
 from .msgtypes import BspkVectorMsg
@@ -80,7 +73,7 @@ class BspkDriver(BusDriver):
 class BspkFIFOMonitor(BusMonitor):
     def __init__(self, fifo, name, clk, mon_in = True, debug=False, **kwargs):
         self.debug = debug
-        self._signals = ['wr_en', 'wr_data', 'rd_en', 'rd_data', 'wrap_rd']
+        self._signals = ['wr_en', 'wr_data', 'rd_en', 'rd_data', 'ptr_rst']
         self.mon_in = mon_in
         BusMonitor.__init__(self, fifo, name, clk, **kwargs)
         self.clock = clk
