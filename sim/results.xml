@@ -1,0 +1,8 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1733975195" />
+    <testcase name="demo_test" classname="demo_test" file="C:\Users\TheoA\Documents\MIT\SENIORSLIDE\6.S965 Digital Systems Lab II\Final Proj\audio-rc-rtl\sim\demo_test.py" lineno="16" time="0.024166584014892578" sim_time_ns="0.001" ratio_time="0.04137945186559066">
+      <failure message="Test failed with RANDOM_SEED=1733975195" />
+    </testcase>
+  </testsuite>
+</testsuites>

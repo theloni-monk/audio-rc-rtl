@@ -54,4 +54,5 @@ f"""v_fifo #(
 """)
 
         # write instantiation
-        return "\n".join(defs)
+        return """
+""".join(defs)

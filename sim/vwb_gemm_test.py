@@ -14,9 +14,9 @@ from cocotb.utils import get_sim_time as gst
 from hls.compiler import parsemodel, svimpl
 from onnx import TensorProto
 from onnx import helper as onnxhelp
-from theloni_simlib.bespoke import *
-from theloni_simlib.boards import EpsScoreboard
-from theloni_simlib.ctb_util import *
+from bespoketb.bespoke import *
+from bespoketb.boards import EpsScoreboard
+from bespoketb.ctb_util import *
 
 
 class VWBMACTester(BspkModuleTester):
@@ -140,7 +140,7 @@ def make_random_gemm_onnx(in_dim, out_dim):
 def make_testing_tl(idim, odim, tlname):
     mdl = make_random_gemm_onnx(idim, odim)
     spec = svimpl.FPGASpec(120, 600_000, 2_700_000, 100_000)
-    fpga_module = parsemodel.gen_sv_top(mdl, idim, spec)
+    fpga_module = parsemodel.gen_chain_sv_top(mdl, idim, spec)
     fpga_module.alloc_regs()
     fpga_module.alloc_bram("sim")
     fpga_module.tlname = tlname

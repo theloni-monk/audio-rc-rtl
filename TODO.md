@@ -55,11 +55,11 @@ Implement
 
 ### Writeup
 
-- [ ] Intro
-- [ ] model justification / training process
-- [ ] hdl implementations
-- [ ] success?
-- [ ] conclusion
+- ~~[*] Intro~~
+- ~~[*] model justification / training process~~
+- ~~[*] hdl implementations~~
+- ~~[*] success?~~
+- ~~[*] conclusion~~
 
 ## Stretch goals (unlikely)
 

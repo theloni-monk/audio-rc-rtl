@@ -37,4 +37,5 @@ f"""vw_matmul #(
   .out_vector_valid({self.out_vec_valid})
     );
 """)
-        return "\n".join(defs)
+        return """
+""".join(defs)

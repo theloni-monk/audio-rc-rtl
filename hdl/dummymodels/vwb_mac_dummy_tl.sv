@@ -27,7 +27,7 @@ logic [10:0][11:0] rd_data_0;
 
 logic  rd_en_0;
 logic  v_fifo_0_out_vec_valid_0;
-logic  wrap_rd_0;
+logic  ptr_rst_0;
 v_fifo #(
         .VecElements(11),
         .ElementsPerRead(11),
@@ -42,7 +42,7 @@ v_fifo #(
             .wr_data(in_data_top),
             .rd_en(rd_en_0),
             .rd_data(rd_data_0),
-            .wrap_rd(wrap_rd_0)
+            .ptr_rst(ptr_rst_0)
         );
 
 
@@ -52,7 +52,7 @@ logic [10:0][11:0] wr_data_1;
 logic  wr_en_1;
 
 logic  v_fifo_1_out_vec_valid_1;
-logic  wrap_rd_1;
+logic  ptr_rst_1;
 v_fifo #(
         .VecElements(11),
         .ElementsPerRead(11),
@@ -67,7 +67,7 @@ v_fifo #(
             .wr_data(wr_data_1),
             .rd_en(rd_out_top),
             .rd_data(out_data_top),
-            .wrap_rd(1'b0)
+            .ptr_rst(1'b0)
         );
 
 
@@ -80,8 +80,8 @@ v_fifo #(
 vwb_mac #(  .InVecLength(11),
             .WorkingRegs(11),
             .NBits(12),
-            .WeightFile("../sim/data/onnx_bn_weight.mem"),
-            .BiasFile("../sim/data/onnx_bn_bias.mem"))
+            .WeightFile("C:/Users/TheoA/Documents/MIT/SENIORSLIDE/6.S965 Digital Systems Lab II/Final Proj/audio-rc-rtl/sim/data/onnx_bn_weight.mem"),
+            .BiasFile("C:/Users/TheoA/Documents/MIT/SENIORSLIDE/6.S965 Digital Systems Lab II/Final Proj/audio-rc-rtl/sim/data/onnx_bn_bias.mem"))
         vwb_mac_0
         (
             .clk_in(clk_in),

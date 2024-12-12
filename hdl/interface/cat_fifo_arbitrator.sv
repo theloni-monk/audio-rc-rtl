@@ -1,6 +1,6 @@
 `default_nettype none
 
-module cat2(
+module cat2 #(
   parameter NBits,
   parameter VecElements0,
   parameter ElementsPerWrite0,
@@ -22,8 +22,8 @@ output logic wr_collision
 
 localparam TotalBits = (VecElement0 + VecElements1)*NBits;
 localparam StartAddr1 = VecElement0 * NBits;
-localparam MaxAddr0 = (VecElement0 - 1)*NBits
-localparam MaxAddr1 = (VecElement0 + VecElements1 - 1)*NBits
+localparam MaxAddr0 = (VecElement0 - 1)*NBits;
+localparam MaxAddr1 = (VecElement0 + VecElements1 - 1)*NBits;
 localparam WrAdv0 = NBits * ElementsPerWrite0;
 localparam WrAdv1 = NBits * ElementsPerWrite1;
 localparam RdAdv = NBits * ElementsPerRead1;

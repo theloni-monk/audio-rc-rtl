@@ -14,9 +14,9 @@ from cocotb.utils import get_sim_time as gst
 from hls.compiler import parsemodel, svimpl
 from onnx import TensorProto
 from onnx import helper as onnxhelp
-from theloni_simlib.bespoke import *
-from theloni_simlib.boards import EpsScoreboard
-from theloni_simlib.ctb_util import *
+from bespoketb.bespoke import *
+from bespoketb.boards import EpsScoreboard
+from bespoketb.ctb_util import *
 
 
 class VWBMACTester(BspkModuleTester):
@@ -67,8 +67,8 @@ def test_runner(svname, mdl_dim, mdl_path, tlen, debug):
     hdl_toplevel_lang = os.getenv("HDL_TOPLEVEL_LANG", "verilog")
     sim = os.getenv("SIM", "icarus")
     proj_path = Path(__file__).resolve().parent.parent
-
-    sys.path.append(str(proj_path / "sim" / "model"))
+    print(proj_path)
+    # sys.path.append(str(proj_path / "sim" / "model"))
 
     sources = [proj_path / "hdl" / "dummymodels" / f"{svname}_dummy_tl.sv"]
     sources.append(proj_path / "hdl" / "interface/v_fifo.sv")
@@ -142,7 +142,7 @@ def make_random_bn_onnx(in_dim, out_dim):
 def make_testing_tl(dim, tlname):
     mdl = make_random_bn_onnx(dim, dim)
     spec = svimpl.FPGASpec(120, 600_000, 2_700_000, 100_000)
-    fpga_module = parsemodel.gen_sv_top(mdl, dim, spec)
+    fpga_module = parsemodel.gen_chain_sv_top(mdl, dim, spec)
     fpga_module.alloc_regs()
     fpga_module.alloc_bram("sim")
     fpga_module.tlname = tlname

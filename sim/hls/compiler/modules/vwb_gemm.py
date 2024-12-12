@@ -16,8 +16,8 @@ f"""vwb_gemm #(  .InVecLength({self.in_vec_size}),
             .OutVecLength({self.out_nodes[0].in_vec_size}),
             .WorkingRegs({self.working_regs}),
             .NBits({self.nbits}),
-            .WeightFile("{self.wfile.path}"),
-            .BiasFile("{self.bfile.path}"))
+            .WeightFile("{self.wfile.posixpath}"),
+            .BiasFile("{self.bfile.posixpath}"))
         {self.name}
         (
             .clk_in({self.clk_in}),
@@ -30,4 +30,5 @@ f"""vwb_gemm #(  .InVecLength({self.in_vec_size}),
             .out_vector_valid({self.out_vec_valid})
         );
 """)
-        return "\n".join(defs)
+        return """
+""".join(defs)

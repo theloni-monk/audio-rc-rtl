@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import List
 from dataclasses import dataclass
 from functools import reduce
-
+import copy
 def factors(n):
     return set(reduce(list.__add__,
                 ([i, n//i] for i in range(1, int(n**0.5) + 1) if n % i == 0)))
@@ -20,6 +20,10 @@ def next_smallest_factor(vec_size, max_factor):
         else:
             break
     return largest_under
+
+def clean_fname(fname):
+    return copy.deepcopy(fname).replace("/", "_")
+
 
 @dataclass
 class FPGASpec():
@@ -44,7 +48,15 @@ class SVModNode():
     rst: Var
     in_data_ready: Var
     modules: List[SVModule]
-
+    
+    @property
+    def in_dim(self):
+        return self.modules[0].in_data.num_elements
+    
+    @property
+    def out_dim(self):
+        return self.modules[-1].write_out_data.num_elements
+    
     def __init__(self,  spec, tlname = "ml_inf"):
         self.tlname = tlname
         self.clk = Var("clk_in", True, 0, 1, False)
@@ -69,24 +81,25 @@ class SVModNode():
 
         assert self.avail_bram > 0, "Insufficient BRAM"
 
+    #HACK greedy allocation
     def alloc_regs(self, greedy=True):
         num_mult_mods = sum(1 if isinstance(mod, (VW_Matmul, VWB_Gemm, VWB_MAC)) else 0 for mod in self.modules)
-        mult_cycles = 1 if greedy else self.modules[2].in_vec_size * self.modules[1].in_vec_size // next_smallest_factor(self.modules[1].in_vec_size, self.spec.num_dsp // num_mult_mods + 1)
+        # mult_cycles = 1 #if greedy else self.modules[2].in_data.num_elements * self.modules[1].in_data.num_elements // next_smallest_factor(self.modules[1].in_data.num_elements, self.spec.num_dsp // num_mult_mods + 1)
 
         for mod in self.modules:
             if isinstance(mod, (VW_Matmul, VWB_Gemm)):
-                mod.working_regs = next_smallest_factor(mod.in_vec_size, self.spec.num_dsp//num_mult_mods + 1)
+                mod.working_regs = next_smallest_factor(mod.in_vec_size, self.spec.num_dsp//num_mult_mods+1)
                 mod.write_out_data.num_elements = 1
 
             else:
-                mod.working_regs = mod.in_vec_size if greedy else max(1, mod.in_vec_size // mult_cycles)
+                mod.working_regs = mod.in_vec_size #if greedy else max(1, mod.in_data.num_elements // mult_cycles)
                 mod.write_out_data.num_elements = mod.working_regs
             mod.in_data.num_elements = mod.working_regs
 
         entry_fifo = self.modules[0]
         entry_fifo.elements_per_read = self.modules[1].working_regs
-        entry_fifo.elements_per_write = 1
-        entry_fifo.in_data.num_elements = 1
+        entry_fifo.elements_per_write = entry_fifo.in_vec_size
+        entry_fifo.in_data.num_elements = entry_fifo.in_vec_size
         for idx, fifo in enumerate(self.modules):
             if idx == 0 or idx == len(self.modules)-1:
                 continue
@@ -100,14 +113,14 @@ class SVModNode():
             fifo.elements_per_read = self.modules[idx+1].working_regs
 
         exit_fifo = self.modules[-1]
-        exit_fifo.elements_per_read = exit_fifo.in_vec_size
+        exit_fifo.elements_per_read = exit_fifo.in_data.num_elements
 
         if isinstance(self.modules[-2], (VW_Matmul, VWB_Gemm)):
             exit_fifo.elements_per_write = 1
             exit_fifo.in_data.num_elements = 1
         else:
             exit_fifo.elements_per_write = self.modules[-2].working_regs
-            exit_fifo.in_data.num_elements = exit_fifo.in_vec_size
+            exit_fifo.in_data.num_elements = exit_fifo.in_data.num_elements
 
 
     @property
@@ -125,49 +138,31 @@ class SVModNode():
         return onodes_visited
 
 
-class SVImplGraph():
-    in_dim: int
-    out_dim: int
-    spec: FPGASpec
-    avail_bram: int
+class SVImplGraph(SVModNode):
 
-    clk: Var
-    rst: Var
-    in_data_ready: Var
     nodes: List[SVModNode]
     joins: List[Cat]
     splits: list # not implemented
     clones: list # not implemented
 
-    def __init__(self, spec, name = "ml_inf"):
-        self.name = name
-        self.clk = Var("clk_in", True, 0, 1, False)
-        self.rst = Var("rst_in", True, 0, 1, False)
-        self.spec = spec
-        self.avail_bram = spec.total_bram
-        self.in_data_readys = [Var(f"in_data_ready_{i}", True, 0, 1, False) for i in range(len(ins))]
+    def __init__(self, spec, n_in, name = "ml_inf"):
+        super().__init__(spec, name)
+        self.in_data_readys = [Var(f"in_data_ready_{i}", True, 0, 1, False) for i in range(len(n_in))]
 
 
-class SVImplTop:
-
-    in_dim: int
-    out_dim: int
-    spec: FPGASpec
-    avail_bram: int
-
-    clk: Var
-    rst: Var
-    in_data_ready: Var
+#TODO: multi-input
+class SVImplTop(SVImplGraph):
     compute_graph: SVImplGraph
 
     def __init__(self, graph:SVImplGraph, spec:FPGASpec, tlname = "ml_inf"):
-        self.tlname = tlname
-        self.clk = Var("clk_in", True, 0, 1, False)
-        self.rst = Var("rst_in", True, 0, 1, False)
-        self.spec = spec
-        self.avail_bram = spec.total_bram
-        self.in_data_ready = Var("in_data_ready", True, 0, 1, False)
-
+        super().__init__(spec, tlname)
+        self.graph = graph
+    
+    def __repr__(self):
+        return "\n".join(map(str, [(-1, self.modules[0].in_vec_size)] + 
+                             [(m.name, (m.in_vec_size, self.modules[i+2].in_vec_size)) if not isinstance(m, V_FIFO) 
+                              else 'fifo' for i,m in enumerate(self.modules[1:-1])] + 
+                             [(self.modules[-1].in_vec_size, -1)]))
 
     def make_sv(self):
         input_fifo = self.modules[0]
@@ -226,7 +221,7 @@ end
 
 {output_fifo.systemverilog()}
 
-{chr(92).join([mod.systemverilog() for mod in self.modules[1:-1]])}
+{"".join([mod.systemverilog() for mod in self.modules[1:-1]])}
 
 endmodule;
 """

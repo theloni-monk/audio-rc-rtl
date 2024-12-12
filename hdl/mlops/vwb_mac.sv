@@ -1,3 +1,4 @@
+`timescale 1ps/1ps
 `default_nettype none // prevents system from inferring an undeclared logic (good practice)
 
 module vwb_mac
@@ -114,4 +115,5 @@ end
 assign out_vector_valid = vec_out_idx == 0;
 
 endmodule;
+
 `default_nettype wire

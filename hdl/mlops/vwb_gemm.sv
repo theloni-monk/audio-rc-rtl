@@ -1,3 +1,5 @@
+`timescale 1ps/1ps
+`default_nettype none
  // prevents system from inferring an undeclared logic (good practice)
  module clip_signed
 (
@@ -36,6 +38,7 @@ module fxp24_to_12(input wire signed [23:0] in,
                     localparam tmp1w  = iniw+outqw;
                     localparam tmp2w  = outiw+inqw;
                     logic signed [tmp1w-1:0] tmp1;
+                    //FIXME: clipping is a bit suspicious
                     // first handle the franctional bits by truncating LSBs or padding zeros
                     assign tmp1 = $signed(in[inw-1-:tmp1w]);
                     // then handle the integer bits by clipping / discarding MSBs (may causing wrapping!), or sign extending MSBs
@@ -245,3 +248,5 @@ end
 endmodule;
 
 
+
+`default_nettype wire

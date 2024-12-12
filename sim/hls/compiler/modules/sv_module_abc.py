@@ -1,4 +1,6 @@
+import os
 from abc import ABC
+from pathlib import Path
 from typing import *
 from dataclasses import dataclass
 import numpy as np
@@ -28,9 +30,19 @@ class Var:
 class BRAMFile:
     fname: str
     buffer: np.ndarray
+    prefix: str | None
+    # TODO: parameterize
+    def __init__(self, fname, buffer, prefix = "sim/data"):
+        self.fname = fname
+        self.buffer = buffer
+        self.prefix = prefix
     @property
+    def posixpath(self):
+        return Path(os.path.abspath(f"{self.prefix}/{self.fname}.mem")).as_posix()
+
     def path(self):
-        return f"../sim/data/{self.fname}.mem"
+        return os.path.abspath(f"{self.prefix}/{self.fname}.mem")
+
     def __repr__(self):
         return self.fname
 

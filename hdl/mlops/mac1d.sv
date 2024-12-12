@@ -1,4 +1,4 @@
-
+`timescale 1ps/1ps
 `define fp_max(a,b)       (((a) > (b)) ? (a) : (b))
 
 // Access iw, qw, and wl parameters of a ufp / sfp :

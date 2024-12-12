@@ -1,4 +1,4 @@
-
+`timescale 1ps/1ps
 //  Xilinx Single Port Read First RAM
 //  This code implements a parameterizable single-port read-first memory where when data
 //  is written to the memory, the output reflects the prior contents of the memory location.
@@ -23,7 +23,7 @@ module xilinx_single_port_ram_read_first #(
   output [RAM_WIDTH-1:0] douta          // RAM output data
 );
 
-  reg [RAM_WIDTH-1:0] BRAM [RAM_DEPTH-1:0];
+  reg   [RAM_WIDTH-1:0] BRAM [RAM_DEPTH-1:0];
   reg [RAM_WIDTH-1:0] ram_data = {RAM_WIDTH{1'b0}};
 
   // The following code either initializes the memory values to a specified file or to all zeros to match hardware

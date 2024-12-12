@@ -1,3 +1,4 @@
+`timescale 1ps/1ps
 `default_nettype none
 // prevents system from inferring an undeclared logic (good practice)
 
